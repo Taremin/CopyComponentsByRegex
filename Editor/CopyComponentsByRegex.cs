@@ -181,7 +181,7 @@
 						}
 						if (next == null) {
 							current = null;
-                            break;
+							break;
 						}
 
 						current = next;
@@ -215,9 +215,9 @@
 
 		private void OnGUI() {
 			activeObject = Selection.activeGameObject;
-			EditorGUILayout.LabelField ("アクティブなオブジェクト");
+			EditorGUILayout.LabelField("アクティブなオブジェクト");
 			using (new GUILayout.VerticalScope(GUI.skin.box)) {
-				EditorGUILayout.LabelField (activeObject ? activeObject.name : "");
+				EditorGUILayout.LabelField(activeObject ? activeObject.name : "");
 			}
 			if (!activeObject) {
 				return;
@@ -225,7 +225,7 @@
 
 			pattern = EditorGUILayout.TextField("正規表現", pattern);
 
-			if (GUILayout.Button ("Copy")) {
+			if (GUILayout.Button("Copy")) {
 				// initialize class variables
 				copyTree = new TreeItem(activeObject);
 				root = activeObject.transform;
@@ -235,12 +235,12 @@
 				CopyWalkdown(activeObject, ref copyTree);
 			}
 
-			EditorGUILayout.LabelField ("コピー中のオブジェクト");
+			EditorGUILayout.LabelField("コピー中のオブジェクト");
 			using (new GUILayout.VerticalScope(GUI.skin.box)) {
-				EditorGUILayout.LabelField (root ? root.name : "");
+				EditorGUILayout.LabelField(root ? root.name : "");
 			}
 
-			if (GUILayout.Button ("Paste")) {
+			if (GUILayout.Button("Paste")) {
 				if (copyTree == null || root == null) {
 					return;
 				}
