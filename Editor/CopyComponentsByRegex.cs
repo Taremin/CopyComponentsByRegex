@@ -41,12 +41,12 @@
 			EditorWindow.GetWindow(typeof(CopyComponentsByRegexWindow));
 		}
 
-		static void CopyWalkdown(GameObject go, ref TreeItem tree, int depth=0) {
+		static void CopyWalkdown(GameObject go, ref TreeItem tree, ref Regex regex, int depth=0) {
 			transforms.Add(go.transform);
 
 			// Components
 			foreach (Component component in go.GetComponents<Component>()) {
-				if (!new Regex(pattern).Match(component.GetType().ToString()).Success) {
+				if (!regex.Match(component.GetType().ToString()).Success) {
 					continue;
 				}
 				tree.components.Add(component);
@@ -57,7 +57,7 @@
 			foreach (Transform child in children) {
 				var node = new TreeItem(child.gameObject);
 				tree.children.Add(node);
-				CopyWalkdown(child.gameObject, ref node, depth + 1);
+				CopyWalkdown(child.gameObject, ref node, ref regex, depth + 1);
 			}
 		}
 
@@ -232,7 +232,8 @@
 				transforms = new List<Transform>();
 				components = new List<Component>();
 
-				CopyWalkdown(activeObject, ref copyTree);
+				var regex = new Regex(pattern);
+				CopyWalkdown(activeObject, ref copyTree, ref regex);
 			}
 
 			EditorGUILayout.LabelField("コピー中のオブジェクト");
