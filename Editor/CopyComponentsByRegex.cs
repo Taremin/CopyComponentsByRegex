@@ -27,6 +27,7 @@
 		static Transform root = null;
 		static List<Transform> transforms = null;
 		static List<Component> components = null;
+		static bool isRemoveBeforeCopy = false;
 
 		void OnSelectionChange() {
 			var editorEvent = EditorGUIUtility.CommandEvent("ChangeActiveObject");
@@ -123,9 +124,44 @@
 			}
 		}
 		
+		static void RemoveWalkdown(GameObject go, ref TreeItem tree, int depth=0) {
+			if (depth > 0 && go.name != tree.name) {
+				return;
+			}
+
+			var componentsTypes = tree.components.Select(component => component.GetType()).Distinct();
+
+			// remove components
+			foreach (Component component in go.GetComponents<Component>()) {
+				if (componentsTypes.Contains(component.GetType())) {
+					Object.DestroyImmediate(component);
+				}
+			}
+
+			// children
+			var children = go.GetComponentsInChildren<Transform>();
+			foreach (Transform child in children) {
+				TreeItem next = null;
+				foreach (TreeItem treeChild in tree.children) {
+					if (
+						child.gameObject.name == treeChild.name &&
+						child.gameObject.GetType().ToString() == treeChild.type
+					) {
+						next = treeChild;
+						RemoveWalkdown(child.gameObject, ref next, depth + 1);
+						break;
+					}
+				}
+			}
+		}
+
 		static void updateProperties(Transform dstRoot) {
 			foreach (Component dstComponent in components) {
 				var type = dstComponent.GetType();
+
+				if (dstComponent == null) {
+					continue;
+				}
 
 				var so = new SerializedObject(dstComponent);
 				so.Update();
@@ -241,9 +277,15 @@
 				EditorGUILayout.LabelField(root ? root.name : "");
 			}
 
+			isRemoveBeforeCopy = GUILayout.Toggle(isRemoveBeforeCopy, "コピー先に同じコンポーネントがあったら削除");
+
 			if (GUILayout.Button("Paste")) {
 				if (copyTree == null || root == null) {
 					return;
+				}
+
+				if (isRemoveBeforeCopy) {
+					RemoveWalkdown(activeObject, ref copyTree);
 				}
 
 				MergeWalkdown(activeObject, ref copyTree);
