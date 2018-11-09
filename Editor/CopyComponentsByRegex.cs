@@ -29,6 +29,10 @@
 		static List<Component> components = null;
 		static bool isRemoveBeforeCopy = false;
 
+		void OnEnable() {
+			pattern = EditorUserSettings.GetConfigValue("CopyComponentsByRegex/pattern") ?? "";
+		}
+
 		void OnSelectionChange() {
 			var editorEvent = EditorGUIUtility.CommandEvent("ChangeActiveObject");
 			editorEvent.type = EventType.Used;
@@ -157,8 +161,6 @@
 
 		static void updateProperties(Transform dstRoot) {
 			foreach (Component dstComponent in components) {
-				var type = dstComponent.GetType();
-
 				if (dstComponent == null) {
 					continue;
 				}
@@ -260,6 +262,7 @@
 			}
 
 			pattern = EditorGUILayout.TextField("正規表現", pattern);
+			EditorUserSettings.SetConfigValue("CopyComponentsByRegex/pattern", pattern);
 
 			if (GUILayout.Button("Copy")) {
 				// initialize class variables
