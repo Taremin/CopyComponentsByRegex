@@ -108,7 +108,20 @@
 				UnityEditorInternal.ComponentUtility.PasteComponentAsNew (go);
 
 				Component[] comps = go.GetComponents<Component> ();
-				components.Add (comps[comps.Length - 1]);
+				var dstComponent = comps[comps.Length - 1];
+				components.Add (dstComponent);
+
+				if (component is Cloth) {
+					var srcCoefficients = (component as Cloth).coefficients;
+					var dstCoefficients = (dstComponent as Cloth).coefficients;
+
+					if (srcCoefficients.Length == dstCoefficients.Length) {
+						for (int i = 0, il = srcCoefficients.Length; i < il; ++i) {
+							dstCoefficients[i].collisionSphereDistance = srcCoefficients[i].collisionSphereDistance;
+							dstCoefficients[i].maxDistance = srcCoefficients[i].maxDistance;
+						}
+					}
+				}
 			}
 
 			// children
