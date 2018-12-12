@@ -32,8 +32,8 @@
 
 		void OnEnable () {
 			pattern = EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/pattern") ?? "";
-			isRemoveBeforeCopy = bool.Parse(EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/isRemoveBeforeCopy") ?? isRemoveBeforeCopy.ToString());
-			isClothNNS = bool.Parse(EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/isClothNNS") ?? isClothNNS.ToString());
+			isRemoveBeforeCopy = bool.Parse (EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/isRemoveBeforeCopy") ?? isRemoveBeforeCopy.ToString ());
+			isClothNNS = bool.Parse (EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/isClothNNS") ?? isClothNNS.ToString ());
 		}
 
 		void OnSelectionChange () {
@@ -108,11 +108,12 @@
 					UnityEditorInternal.ComponentUtility.PasteComponentAsNew(go);
 				}
 				*/
-				if (component is Cloth && go.GetComponent<Cloth> () == null) {
-					var cloth = go.AddComponent<Cloth> ();
-					cloth.ClearTransformMotion ();
+				if (component is Cloth) {
+					var cloth = go.GetComponent<Cloth> () == null ? go.AddComponent<Cloth> () : go.GetComponent<Cloth>();
+					copyProperties (component, cloth);
+				} else {
+					UnityEditorInternal.ComponentUtility.PasteComponentAsNew (go);
 				}
-				UnityEditorInternal.ComponentUtility.PasteComponentAsNew (go);
 
 				Component[] comps = go.GetComponents<Component> ();
 				var dstComponent = comps[comps.Length - 1];
@@ -199,6 +200,20 @@
 					}
 				}
 			}
+		}
+
+		static void copyProperties (Component srcComponent, Component dstComponent) {
+			var dst = new SerializedObject (dstComponent);
+			var src = new SerializedObject (srcComponent);
+
+			dst.Update ();
+			src.Update ();
+
+			var iter = src.GetIterator ();
+			while (iter.NextVisible (true)) {
+				dst.CopyFromSerializedProperty (iter);
+			}
+			dst.ApplyModifiedProperties ();
 		}
 
 		static void updateProperties (Transform dstRoot) {
@@ -324,11 +339,11 @@
 
 			EditorUserSettings.SetConfigValue (
 				"CopyComponentsByRegex/isRemoveBeforeCopy",
-				(isRemoveBeforeCopy = GUILayout.Toggle (isRemoveBeforeCopy, "コピー先に同じコンポーネントがあったら削除")).ToString()
+				(isRemoveBeforeCopy = GUILayout.Toggle (isRemoveBeforeCopy, "コピー先に同じコンポーネントがあったら削除")).ToString ()
 			);
 			EditorUserSettings.SetConfigValue (
 				"CopyComponentsByRegex/isClothNNS",
-				(isClothNNS = GUILayout.Toggle (isClothNNS, "ClothコンポーネントのConstraintsを一番近い頂点からコピーする")).ToString()
+				(isClothNNS = GUILayout.Toggle (isClothNNS, "ClothコンポーネントのConstraintsを一番近い頂点からコピーする")).ToString ()
 			);
 
 			GUIStyle labelStyle = new GUIStyle (GUI.skin.label);
