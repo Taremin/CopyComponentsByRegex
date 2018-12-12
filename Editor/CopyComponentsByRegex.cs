@@ -32,6 +32,8 @@
 
 		void OnEnable () {
 			pattern = EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/pattern") ?? "";
+			isRemoveBeforeCopy = bool.Parse(EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/isRemoveBeforeCopy") ?? isRemoveBeforeCopy.ToString());
+			isClothNNS = bool.Parse(EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/isClothNNS") ?? isClothNNS.ToString());
 		}
 
 		void OnSelectionChange () {
@@ -135,8 +137,6 @@
 
 						for (int i = 0, il = dstCoefficients.Length, ml = dstVertives.Length; i < il && i < ml; ++i) {
 							var srcIdx = kdtree.FindNearest (dstVertives[i]);
-							var sv = srcVertices[srcIdx];
-							var dv = dstVertives[i];
 							dstCoefficients[i].collisionSphereDistance = srcCoefficients[srcIdx].collisionSphereDistance;
 							dstCoefficients[i].maxDistance = srcCoefficients[srcIdx].maxDistance;
 						}
@@ -322,8 +322,14 @@
 				EditorGUILayout.LabelField (root ? root.name : "");
 			}
 
-			isRemoveBeforeCopy = GUILayout.Toggle (isRemoveBeforeCopy, "コピー先に同じコンポーネントがあったら削除");
-			isClothNNS = GUILayout.Toggle (isClothNNS, "ClothコンポーネントのConstraintsを一番近い頂点からコピーする");
+			EditorUserSettings.SetConfigValue (
+				"CopyComponentsByRegex/isRemoveBeforeCopy",
+				(isRemoveBeforeCopy = GUILayout.Toggle (isRemoveBeforeCopy, "コピー先に同じコンポーネントがあったら削除")).ToString()
+			);
+			EditorUserSettings.SetConfigValue (
+				"CopyComponentsByRegex/isClothNNS",
+				(isClothNNS = GUILayout.Toggle (isClothNNS, "ClothコンポーネントのConstraintsを一番近い頂点からコピーする")).ToString()
+			);
 
 			GUIStyle labelStyle = new GUIStyle (GUI.skin.label);
 			labelStyle.wordWrap = true;
