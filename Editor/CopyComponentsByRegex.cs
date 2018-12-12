@@ -28,6 +28,7 @@
 		static List<Transform> transforms = null;
 		static List<Component> components = null;
 		static bool isRemoveBeforeCopy = false;
+		static bool isClothNNS = false;
 
 		void OnEnable () {
 			pattern = EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/pattern") ?? "";
@@ -105,6 +106,10 @@
 					UnityEditorInternal.ComponentUtility.PasteComponentAsNew(go);
 				}
 				*/
+				if (component is Cloth && go.GetComponent<Cloth> () == null) {
+					var cloth = go.AddComponent<Cloth> ();
+					cloth.ClearTransformMotion ();
+				}
 				UnityEditorInternal.ComponentUtility.PasteComponentAsNew (go);
 
 				Component[] comps = go.GetComponents<Component> ();
@@ -112,13 +117,37 @@
 				components.Add (dstComponent);
 
 				if (component is Cloth) {
-					var srcCoefficients = (component as Cloth).coefficients;
-					var dstCoefficients = (dstComponent as Cloth).coefficients;
+					var srcCloth = (component as Cloth);
+					var dstCloth = (dstComponent as Cloth);
+					var srcCoefficients = srcCloth.coefficients;
+					var dstCoefficients = dstCloth.coefficients;
 
-					if (srcCoefficients.Length == dstCoefficients.Length) {
-						for (int i = 0, il = srcCoefficients.Length; i < il; ++i) {
-							dstCoefficients[i].collisionSphereDistance = srcCoefficients[i].collisionSphereDistance;
-							dstCoefficients[i].maxDistance = srcCoefficients[i].maxDistance;
+					if (isClothNNS) {
+						var srcVertices = srcCloth.vertices;
+						var dstVertives = dstCloth.vertices;
+
+						// build KD-Tree
+						var kdtree = new KDTree (
+							srcVertices,
+							0,
+							(srcVertices.Length < srcCoefficients.Length ? srcVertices.Length : srcCoefficients.Length) - 1
+						);
+
+						for (int i = 0, il = dstCoefficients.Length, ml = dstVertives.Length; i < il && i < ml; ++i) {
+							var srcIdx = kdtree.FindNearest (dstVertives[i]);
+							var sv = srcVertices[srcIdx];
+							var dv = dstVertives[i];
+							dstCoefficients[i].collisionSphereDistance = srcCoefficients[srcIdx].collisionSphereDistance;
+							dstCoefficients[i].maxDistance = srcCoefficients[srcIdx].maxDistance;
+						}
+						dstCloth.coefficients = dstCoefficients;
+					} else {
+						if (srcCoefficients.Length == dstCoefficients.Length) {
+							for (int i = 0, il = srcCoefficients.Length; i < il; ++i) {
+								dstCoefficients[i].collisionSphereDistance = srcCoefficients[i].collisionSphereDistance;
+								dstCoefficients[i].maxDistance = srcCoefficients[i].maxDistance;
+							}
+							dstCloth.coefficients = dstCoefficients;
 						}
 					}
 				}
@@ -150,7 +179,7 @@
 
 			// remove components
 			foreach (Component component in go.GetComponents<Component> ()) {
-				if (componentsTypes.Contains (component.GetType ())) {
+				if (component != null && componentsTypes.Contains (component.GetType ())) {
 					Object.DestroyImmediate (component);
 				}
 			}
@@ -294,6 +323,18 @@
 			}
 
 			isRemoveBeforeCopy = GUILayout.Toggle (isRemoveBeforeCopy, "コピー先に同じコンポーネントがあったら削除");
+			isClothNNS = GUILayout.Toggle (isClothNNS, "ClothコンポーネントのConstraintsを一番近い頂点からコピーする");
+
+			GUIStyle labelStyle = new GUIStyle (GUI.skin.label);
+			labelStyle.wordWrap = true;
+			using (new GUILayout.VerticalScope (GUI.skin.box)) {
+				GUILayout.Label (
+					"「一番近い頂点からコピー」を利用する場合はあらかじめClothのコピー先にClothを追加するか、" +
+					"最初はチェックなしでコピーした後、別途Clothのみを対象にして「一番近い頂点からコピー」を行ってください。" +
+					"\n(UnityのClothコンポーネントの初期化時に頂点座標がずれてるのが原因のため現在は修正困難です)",
+					labelStyle
+				);
+			}
 
 			if (GUILayout.Button ("Paste")) {
 				if (copyTree == null || root == null) {
