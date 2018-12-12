@@ -51,7 +51,7 @@
 
 			// Components
 			foreach (Component component in go.GetComponents<Component> ()) {
-				if (!regex.Match (component.GetType ().ToString ()).Success) {
+				if (component == null || !regex.Match (component.GetType ().ToString ()).Success) {
 					continue;
 				}
 				tree.components.Add (component);
