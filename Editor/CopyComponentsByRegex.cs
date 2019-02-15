@@ -114,7 +114,7 @@
 				*/
 				if (component is Cloth) {
 					var cloth = go.GetComponent<Cloth> () == null ? go.AddComponent<Cloth> () : go.GetComponent<Cloth> ();
-					copyProperties (component, cloth);
+					CopyProperties (component, cloth);
 				} else {
 					UnityEditorInternal.ComponentUtility.PasteComponentAsNew (go);
 				}
@@ -229,7 +229,7 @@
 			return children;
 		}
 
-		static void copyProperties (Component srcComponent, Component dstComponent) {
+		static void CopyProperties (Component srcComponent, Component dstComponent) {
 			var dst = new SerializedObject (dstComponent);
 			var src = new SerializedObject (srcComponent);
 
@@ -243,7 +243,7 @@
 			dst.ApplyModifiedProperties ();
 		}
 
-		static void updateProperties (Transform dstRoot) {
+		static void UpdateProperties (Transform dstRoot) {
 			foreach (Component dstComponent in components) {
 				if (dstComponent == null) {
 					continue;
@@ -398,7 +398,7 @@
 				}
 
 				MergeWalkdown (activeObject, ref copyTree);
-				updateProperties (activeObject.transform);
+				UpdateProperties (activeObject.transform);
 			}
 		}
 	}
