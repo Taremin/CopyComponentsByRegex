@@ -10,11 +10,13 @@
 	class TreeItem {
 		public string name;
 		public string type;
+		public GameObject gameObject;
 		public List<TreeItem> children;
 		public List<Component> components;
 		public TreeItem (GameObject go) {
 			name = go.name;
 			type = go.GetType ().ToString ();
+			gameObject = go;
 			components = new List<Component> ();
 			children = new List<TreeItem> ();
 		}
@@ -28,11 +30,13 @@
 		static List<Transform> transforms = null;
 		static List<Component> components = null;
 		static bool isRemoveBeforeCopy = false;
+		static bool isObjectCopy = false;
 		static bool isClothNNS = false;
 
 		void OnEnable () {
 			pattern = EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/pattern") ?? "";
 			isRemoveBeforeCopy = bool.Parse (EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/isRemoveBeforeCopy") ?? isRemoveBeforeCopy.ToString ());
+			isObjectCopy = bool.Parse (EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/isObjectCopy") ?? isObjectCopy.ToString ());
 			isClothNNS = bool.Parse (EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/isClothNNS") ?? isClothNNS.ToString ());
 		}
 
@@ -61,7 +65,7 @@
 			}
 
 			// Children
-			var children = go.GetComponentInChildren<Transform> ();
+			var children = GetChildren (go);
 			foreach (Transform child in children) {
 				var node = new TreeItem (child.gameObject);
 				tree.children.Add (node);
@@ -109,8 +113,8 @@
 				}
 				*/
 				if (component is Cloth) {
-					var cloth = go.GetComponent<Cloth> () == null ? go.AddComponent<Cloth> () : go.GetComponent<Cloth>();
-					copyProperties (component, cloth);
+					var cloth = go.GetComponent<Cloth> () == null ? go.AddComponent<Cloth> () : go.GetComponent<Cloth> ();
+					CopyProperties (component, cloth);
 				} else {
 					UnityEditorInternal.ComponentUtility.PasteComponentAsNew (go);
 				}
@@ -155,18 +159,30 @@
 			}
 
 			// children
-			var children = go.GetComponentsInChildren<Transform> ();
+			var children = GetChildren (go);
+			var childDic = new Dictionary<string, Transform> ();
 			foreach (Transform child in children) {
-				TreeItem next = null;
-				foreach (TreeItem treeChild in tree.children) {
-					if (
-						child.gameObject.name == treeChild.name &&
-						child.gameObject.GetType ().ToString () == treeChild.type
-					) {
-						next = treeChild;
-						MergeWalkdown (child.gameObject, ref next, depth + 1);
-						break;
+				childDic[child.gameObject.name] = child;
+			}
+			foreach (TreeItem treeChild in tree.children) {
+				Transform child;
+				var next = treeChild;
+				if (!childDic.ContainsKey (treeChild.name)) {
+					if (!isObjectCopy) {
+						continue;
 					}
+					GameObject childObject = (GameObject) Object.Instantiate (treeChild.gameObject, go.transform);
+					childObject.name = treeChild.name;
+					child = childObject.transform;
+
+					// コピーしたオブジェクトに対しては自動的に同種コンポーネントの削除を行う
+					RemoveWalkdown(childObject, ref next);
+				} else {
+					child = childDic[treeChild.name];
+				}
+
+				if (child.gameObject.GetType ().ToString () == treeChild.type) {
+					MergeWalkdown (child.gameObject, ref next, depth + 1);
 				}
 			}
 		}
@@ -186,7 +202,7 @@
 			}
 
 			// children
-			var children = go.GetComponentsInChildren<Transform> ();
+			var children = GetChildren (go);
 			foreach (Transform child in children) {
 				TreeItem next = null;
 				foreach (TreeItem treeChild in tree.children) {
@@ -202,7 +218,18 @@
 			}
 		}
 
-		static void copyProperties (Component srcComponent, Component dstComponent) {
+		static Transform[] GetChildren (GameObject go) {
+			int count = go.transform.childCount;
+			var children = new Transform[count];
+
+			for (int i = 0; i < count; ++i) {
+				children[i] = go.transform.GetChild (i);
+			}
+
+			return children;
+		}
+
+		static void CopyProperties (Component srcComponent, Component dstComponent) {
 			var dst = new SerializedObject (dstComponent);
 			var src = new SerializedObject (srcComponent);
 
@@ -216,7 +243,7 @@
 			dst.ApplyModifiedProperties ();
 		}
 
-		static void updateProperties (Transform dstRoot) {
+		static void UpdateProperties (Transform dstRoot) {
 			foreach (Component dstComponent in components) {
 				if (dstComponent == null) {
 					continue;
@@ -261,7 +288,7 @@
 					Transform current = dstRoot;
 					foreach (var route in routes) {
 						// 次の子を探す(TreeItemの名前と型で経路と同じ子を探す)
-						var children = current.GetComponentsInChildren<Transform> ();
+						var children = GetChildren (current.gameObject);
 						if (children.Length < 1) {
 							current = null;
 							break;
@@ -342,6 +369,10 @@
 				(isRemoveBeforeCopy = GUILayout.Toggle (isRemoveBeforeCopy, "コピー先に同じコンポーネントがあったら削除")).ToString ()
 			);
 			EditorUserSettings.SetConfigValue (
+				"CopyComponentsByRegex/isObjectCopy",
+				(isObjectCopy = GUILayout.Toggle (isObjectCopy, "コピー先にオブジェクトがなかったらオブジェクトをコピー")).ToString ()
+			);
+			EditorUserSettings.SetConfigValue (
 				"CopyComponentsByRegex/isClothNNS",
 				(isClothNNS = GUILayout.Toggle (isClothNNS, "ClothコンポーネントのConstraintsを一番近い頂点からコピーする")).ToString ()
 			);
@@ -367,7 +398,7 @@
 				}
 
 				MergeWalkdown (activeObject, ref copyTree);
-				updateProperties (activeObject.transform);
+				UpdateProperties (activeObject.transform);
 			}
 		}
 	}
