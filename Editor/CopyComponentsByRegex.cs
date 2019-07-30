@@ -388,17 +388,6 @@
 				(isClothNNS = GUILayout.Toggle (isClothNNS, "ClothコンポーネントのConstraintsを一番近い頂点からコピー")).ToString ()
 			);
 
-			GUIStyle labelStyle = new GUIStyle (GUI.skin.label);
-			labelStyle.wordWrap = true;
-			using (new GUILayout.VerticalScope (GUI.skin.box)) {
-				GUILayout.Label (
-					"「一番近い頂点からコピー」を利用する場合はあらかじめClothのコピー先にClothを追加するか、" +
-					"最初はチェックなしでコピーした後、別途Clothのみを対象にして「一番近い頂点からコピー」を行ってください。" +
-					"\n(UnityのClothコンポーネントの初期化時に頂点座標がずれてるのが原因のため現在は修正困難です)",
-					labelStyle
-				);
-			}
-
 			if (GUILayout.Button ("Paste")) {
 				if (copyTree == null || root == null) {
 					return;
@@ -410,6 +399,17 @@
 
 				MergeWalkdown (activeObject, ref copyTree);
 				UpdateProperties (activeObject.transform);
+			}
+
+			GUIStyle labelStyle = new GUIStyle (GUI.skin.label);
+			labelStyle.wordWrap = true;
+			using (new GUILayout.VerticalScope (GUI.skin.box)) {
+				GUILayout.Label (
+					"「一番近い頂点からコピー」を利用する場合はあらかじめClothのコピー先にClothを追加するか、" +
+					"最初はチェックなしでコピーした後、別途Clothのみを対象にして「一番近い頂点からコピー」を行ってください。" +
+					"\n(UnityのClothコンポーネントの初期化時に頂点座標がずれてるのが原因のため現在は修正困難です)",
+					labelStyle
+				);
 			}
 		}
 	}
