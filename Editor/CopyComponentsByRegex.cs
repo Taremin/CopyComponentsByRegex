@@ -32,12 +32,14 @@
 		static bool isRemoveBeforeCopy = false;
 		static bool isObjectCopy = false;
 		static bool isClothNNS = false;
+		static bool copyTransform = false;
 
 		void OnEnable () {
 			pattern = EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/pattern") ?? "";
 			isRemoveBeforeCopy = bool.Parse (EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/isRemoveBeforeCopy") ?? isRemoveBeforeCopy.ToString ());
 			isObjectCopy = bool.Parse (EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/isObjectCopy") ?? isObjectCopy.ToString ());
 			isClothNNS = bool.Parse (EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/isClothNNS") ?? isClothNNS.ToString ());
+			copyTransform = bool.Parse (EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/copyTransform") ?? copyTransform.ToString ());
 		}
 
 		void OnSelectionChange () {
@@ -112,9 +114,14 @@
 					UnityEditorInternal.ComponentUtility.PasteComponentAsNew(go);
 				}
 				*/
+				var targetComponent = go.GetComponent(component.GetType());
 				if (component is Cloth) {
 					var cloth = go.GetComponent<Cloth> () == null ? go.AddComponent<Cloth> () : go.GetComponent<Cloth> ();
 					CopyProperties (component, cloth);
+				} else if (component is Transform) {
+					if (copyTransform) {
+						UnityEditorInternal.ComponentUtility.PasteComponentValues (targetComponent);
+					}
 				} else {
 					UnityEditorInternal.ComponentUtility.PasteComponentAsNew (go);
 				}
@@ -364,6 +371,10 @@
 				EditorGUILayout.LabelField (root ? root.name : "");
 			}
 
+			EditorUserSettings.SetConfigValue (
+				"CopyComponentsByRegex/copyTransform",
+				(copyTransform = GUILayout.Toggle (copyTransform, "Transformがマッチした場合値をコピー")).ToString ()
+			);
 			EditorUserSettings.SetConfigValue (
 				"CopyComponentsByRegex/isRemoveBeforeCopy",
 				(isRemoveBeforeCopy = GUILayout.Toggle (isRemoveBeforeCopy, "コピー先に同じコンポーネントがあったら削除")).ToString ()
