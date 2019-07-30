@@ -385,7 +385,7 @@
 			);
 			EditorUserSettings.SetConfigValue (
 				"CopyComponentsByRegex/isClothNNS",
-				(isClothNNS = GUILayout.Toggle (isClothNNS, "ClothコンポーネントのConstraintsを一番近い頂点からコピーする")).ToString ()
+				(isClothNNS = GUILayout.Toggle (isClothNNS, "ClothコンポーネントのConstraintsを一番近い頂点からコピー")).ToString ()
 			);
 
 			GUIStyle labelStyle = new GUIStyle (GUI.skin.label);
