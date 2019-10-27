@@ -321,25 +321,50 @@
 
 					if (dstObjectReference is Transform) {
 						property.objectReferenceValue = current;
-					}
+					} else if (dstObjectReference is Component) {
+						Component comp = (Component)dstObjectReference;
+						var children = current.GetComponents(dstObjectReference.GetType());
+						var index = GetReferenceIndex(ref srcTransform, ref comp);
 
-					if (dstObjectReference is Component) {
-						Component comp = null;
-						var children = current.GetComponentsInChildren<Component> ();
-						foreach (Component child in children) {
-							if (child.GetType () == dstObjectReference.GetType ()) {
-								comp = child;
-								break;
-							}
-						}
-						if (comp == null) {
+						if (!SearchObjectReference(ref copyTree, ref comp)) {
 							continue;
 						}
-						property.objectReferenceValue = comp;
+						if (index < 0) {
+							continue;
+						}
+
+						property.objectReferenceValue = children[index];
 					}
 				}
 				so.ApplyModifiedProperties ();
 			}
+		}
+		static private int GetReferenceIndex(ref Transform current, ref Component component) {
+			var children = current.GetComponents(component.GetType());
+			int i = children.Length;
+
+			while (--i >= 0) {
+				Component child = children[i];
+				if (component == child) {
+					break;
+				}
+			}
+
+			return i;
+		}
+
+		static private bool SearchObjectReference(ref TreeItem treeitem, ref Component component) {
+			if (treeitem.components.Contains(component)) {
+				return true;
+			}
+			for(int i = 0, il = treeitem.children.Count(); i < il; ++i) {
+				var child = treeitem.children[i];
+				if (SearchObjectReference(ref child, ref component)) {
+					return true;
+				}
+			}
+
+			return false;
 		}
 
 		private void OnGUI () {
