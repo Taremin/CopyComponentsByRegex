@@ -344,8 +344,7 @@
 			int i = children.Length;
 
 			while (--i >= 0) {
-				Component child = children[i];
-				if (component == child) {
+				if (children[i] == component) {
 					break;
 				}
 			}
