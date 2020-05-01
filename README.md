@@ -6,8 +6,13 @@
 
 ## インストール
 
-[このリポジトリのzipファイル](https://github.com/Taremin/CopyComponentsByRegex/archive/master.zip)をダウンロードして、解凍したものをアセットの `Plugins` フォルダにコピーします。
+[このリポジトリのzipファイル](https://github.com/Taremin/CopyComponentsByRegex/archive/master.zip)をダウンロードして、解凍したものをアセット内にコピーします。
 
+### インストール時の注意
+
+ここで注意するのは `Editor` フォルダも **そのまま** コピーすることです。
+これはUnityの仕様で「`Editor`フォルダの中にあるスクリプトはエディターでのみ有効で、ゲーム実行時には無視される」というのがあるからです。
+`Editor` フォルダ内の `*.cs` ファイルのみをアセットにいれてしまうと、ゲーム実行時にも実行されてしまいエラーが発生します。
 
 ## 使い方
 
