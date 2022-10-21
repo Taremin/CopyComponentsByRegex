@@ -204,6 +204,9 @@
 			// remove components
 			foreach (Component component in go.GetComponents<Component> ()) {
 				if (component != null && componentsTypes.Contains (component.GetType ())) {
+					if (component is UnityEngine.Transform) {
+						continue;
+					}
 					Object.DestroyImmediate (component);
 				}
 			}
