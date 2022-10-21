@@ -4,11 +4,17 @@
 
 これは正規表現でマッチする、構造が同じ場所にあるコンポーネントを一括でコピーするUnityエディタ拡張です。
 
-## インストール
+## インストール(UPM)
+
+1. Unityのメニューバーから `Window` -> `Package Manager` を開く
+2. Package Manager の左上にある `+` から `Add package from git URL` をクリック
+3. `https://github.com/Taremin/CopyComponentsByRegex.git` をコピー＆ペーストして `Add` をクリック
+
+## インストール(ZIP)
 
 [このリポジトリのzipファイル](https://github.com/Taremin/CopyComponentsByRegex/archive/master.zip)をダウンロードして、解凍したものをアセット内にコピーします。
 
-### インストール時の注意
+### ZIPインストール時の注意
 
 ここで注意するのは `Editor` フォルダも **そのまま** コピーすることです。
 
