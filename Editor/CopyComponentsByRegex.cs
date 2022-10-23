@@ -31,6 +31,7 @@
 		static List<Component> components = null;
 		static bool isRemoveBeforeCopy = false;
 		static bool isObjectCopy = false;
+		static bool isObjectCopyMatchOnly = false;
 		static bool isClothNNS = false;
 		static bool copyTransform = false;
 
@@ -38,6 +39,7 @@
 			pattern = EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/pattern") ?? "";
 			isRemoveBeforeCopy = bool.Parse (EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/isRemoveBeforeCopy") ?? isRemoveBeforeCopy.ToString ());
 			isObjectCopy = bool.Parse (EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/isObjectCopy") ?? isObjectCopy.ToString ());
+			isObjectCopyMatchOnly = bool.Parse (EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/isObjectCopyMatchOnly") ?? isObjectCopyMatchOnly.ToString ());
 			isClothNNS = bool.Parse (EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/isClothNNS") ?? isClothNNS.ToString ());
 			copyTransform = bool.Parse (EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/copyTransform") ?? copyTransform.ToString ());
 		}
@@ -75,6 +77,21 @@
 			}
 		}
 
+		static void CopyObjectWalkdown (Transform src, ref TreeItem tree) {
+			foreach (TreeItem child in tree.children) {
+				var next = child;
+				if (!isObjectCopyMatchOnly || child.components.Count > 0) {
+					var route = SearchRoute (root, src);
+					if (route == null) {
+						continue;
+					}
+					route.Add (child);
+					CopyObject (root, activeObject.transform, route);
+				}
+				CopyObjectWalkdown (child.gameObject.transform, ref next);
+			}
+		}
+
 		static List<TreeItem> SearchRoute (Transform root, Transform dst) {
 			List<TreeItem> down = new List<TreeItem> ();
 
@@ -83,7 +100,7 @@
 			}
 
 			var current = dst;
-			while (CopyComponentsByRegexWindow.root != current) {
+			while (root != current) {
 				down.Add (new TreeItem (current.gameObject));
 				current = current.parent;
 				if (current == null) {
@@ -93,6 +110,42 @@
 			down.Reverse ();
 
 			return down;
+		}
+
+		static Transform CopyObject (Transform srcRoot, Transform dstRoot, List<TreeItem> route) {
+			var src = srcRoot;
+			var dst = dstRoot;
+
+			foreach (TreeItem current in route) {
+				var item = current;
+				Transform srcChild = null;
+				Transform dstChild = null;
+				foreach (Transform child in GetChildren (src.gameObject)) {
+					if (child.name == current.name) {
+						srcChild = child;
+						break;
+					}
+				}
+				foreach (Transform child in GetChildren (dst.gameObject)) {
+					if (child.name == current.name) {
+						dstChild = child;
+						break;
+					}
+				}
+				if (srcChild != null && dstChild == null) {
+					GameObject childObject = (GameObject)Object.Instantiate (srcChild.gameObject, dst);
+					childObject.name = current.name;
+					dst = dstChild = childObject.transform;
+
+					// コピーしたオブジェクトに対しては自動的に同種コンポーネントの削除を行う
+					RemoveWalkdown (childObject, ref item);
+				} else {
+					dst = dstChild;
+				}
+				src = srcChild;
+			}
+
+			return dst;
 		}
 
 		static void MergeWalkdown (GameObject go, ref TreeItem tree, int depth = 0) {
@@ -172,21 +225,13 @@
 				childDic[child.gameObject.name] = child;
 			}
 			foreach (TreeItem treeChild in tree.children) {
-				Transform child;
 				var next = treeChild;
-				if (!childDic.ContainsKey (treeChild.name)) {
-					if (!isObjectCopy) {
-						continue;
-					}
-					GameObject childObject = (GameObject) Object.Instantiate (treeChild.gameObject, go.transform);
-					childObject.name = treeChild.name;
-					child = childObject.transform;
 
-					// コピーしたオブジェクトに対しては自動的に同種コンポーネントの削除を行う
-					RemoveWalkdown(childObject, ref next);
-				} else {
-					child = childDic[treeChild.name];
+				if (!childDic.ContainsKey (treeChild.name)) {
+					continue;
 				}
+
+				Transform child = childDic[treeChild.name];
 
 				if (child.gameObject.GetType ().ToString () == treeChild.type) {
 					MergeWalkdown (child.gameObject, ref next, depth + 1);
@@ -410,6 +455,14 @@
 				"CopyComponentsByRegex/isObjectCopy",
 				(isObjectCopy = GUILayout.Toggle (isObjectCopy, "コピー先にオブジェクトがなかったらオブジェクトをコピー")).ToString ()
 			);
+			if (isObjectCopy) {
+				using (new GUILayout.VerticalScope (GUI.skin.box)) {
+					EditorUserSettings.SetConfigValue (
+						"CopyComponentsByRegex/isObjectCopyMatchOnly",
+						(isObjectCopyMatchOnly = GUILayout.Toggle (isObjectCopyMatchOnly, "マッチしたコンポーネントを持つオブジェクトのみコピー")).ToString ()
+					);
+				}
+			}
 			EditorUserSettings.SetConfigValue (
 				"CopyComponentsByRegex/isClothNNS",
 				(isClothNNS = GUILayout.Toggle (isClothNNS, "ClothコンポーネントのConstraintsを一番近い頂点からコピー")).ToString ()
@@ -424,6 +477,9 @@
 					RemoveWalkdown (activeObject, ref copyTree);
 				}
 
+				if (isObjectCopy) {
+					CopyObjectWalkdown (root, ref copyTree);
+				}
 				MergeWalkdown (activeObject, ref copyTree);
 				UpdateProperties (activeObject.transform);
 			}
