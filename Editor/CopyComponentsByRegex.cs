@@ -65,6 +65,9 @@
 				if (component == null || !regex.Match (component.GetType ().ToString ()).Success) {
 					continue;
 				}
+				if (component is Transform && !copyTransform) {
+					continue;
+				}
 				tree.components.Add (component);
 			}
 
