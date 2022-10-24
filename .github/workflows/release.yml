@@ -22,15 +22,15 @@ jobs:
         id: version
         run: |
           REPOSITORY=$(echo ${{ github.event.repository.name }})
-          echo ::set-output name=repository::$REPOSITORY
+          echo repository=$REPOSITORY >> $GITHUB_OUTPUT
           VERSION=$(basename ${{ github.ref }})
-          echo ::set-output name=version::$VERSION
+          echo version=$VERSION >> $GITHUB_OUTPUT
           ARCHIVE_BASENAME=$(echo $REPOSITORY-$VERSION)
-          echo ::set-output name=basename::$ARCHIVE_BASENAME
+          echo basename=$ARCHIVE_BASENAME >> $GITHUB_OUTPUT
           ZIP_FILENAME=$(echo $ARCHIVE_BASENAME.zip)
-          echo ::set-output name=zip::$ZIP_FILENAME
+          echo zip=$ZIP_FILENAME >> $GITHUB_OUTPUT
           PACKAGE_FILENAME=$(echo $ARCHIVE_BASENAME.unitypackage)
-          echo ::set-output name=unitypackage::$PACKAGE_FILENAME
+          echo unitypackage=$PACKAGE_FILENAME >> $GITHUB_OUTPUT
         
       - name: Create Zip
         uses: thedoctor0/zip-release@09336613be18a8208dfa66bd57efafd9e2685657
@@ -38,8 +38,18 @@ jobs:
           type: "zip"
           filename: "${{ steps.version.outputs.zip }}"
           exclusions: '*.git*'
+
+      - name: Create UnityPackage Directory
+        run: mkdir -p "Assets/${{ github.repository_owner }}/${{ github.event.repository.name }}"
+
+      - name: Move to Unitypackage Directory
+        run: find . -mindepth 1 -maxdepth 1 -not -name Assets -exec mv -t "Assets/${{ github.repository_owner }}/${{ github.event.repository.name }}" {} + 
+
+      - name: Create .meta list
+        run: find "Assets/" -name "*.meta" >> metaList
           
-      - run: find "./" -name \*.meta >> metaList
+      - name: Check .meta list
+        run: cat metaList
           
       - name: Create UnityPackage
         uses: pCYSl5EDgo/create-unitypackage@e28c7a4616b2754c564b0a959a03b3c89b756fdb
