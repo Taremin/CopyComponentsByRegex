@@ -1,0 +1,56 @@
+name: Build Release
+
+on: 
+  workflow_dispatch:
+  push:
+    tags:
+      - "v[0-9]+\\.[0-9]+\\.[0-9]+"
+      - "v[0-9]+\\.[0-9]+\\.[0-9]+-[a-z]+"
+
+env:
+  packageName: "taremin.copy-components-by-regex"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: version
+        id: version
+        run: |
+          REPOSITORY=$(echo ${{ github.event.repository.name }})
+          echo ::set-output name=repository::$REPOSITORY
+          VERSION=$(basename ${{ github.ref }})
+          echo ::set-output name=version::$VERSION
+          ARCHIVE_BASENAME=$(echo $REPOSITORY-$VERSION)
+          echo ::set-output name=basename::$ARCHIVE_BASENAME
+          ZIP_FILENAME=$(echo $ARCHIVE_BASENAME.zip)
+          echo ::set-output name=zip::$ZIP_FILENAME
+          PACKAGE_FILENAME=$(echo $ARCHIVE_BASENAME.unitypackage)
+          echo ::set-output name=unitypackage::$PACKAGE_FILENAME
+        
+      - name: Create Zip
+        uses: thedoctor0/zip-release@09336613be18a8208dfa66bd57efafd9e2685657
+        with:
+          type: "zip"
+          filename: "${{ steps.version.outputs.zip }}"
+          exclusions: '*.git*'
+          
+      - run: find "./" -name \*.meta >> metaList
+          
+      - name: Create UnityPackage
+        uses: pCYSl5EDgo/create-unitypackage@e28c7a4616b2754c564b0a959a03b3c89b756fdb
+        with:
+          package-path: ${{ steps.version.outputs.unitypackage }}
+          include-files: metaList
+        
+      - name: Make Release
+        uses: softprops/action-gh-release@1e07f4398721186383de40550babbdf2b84acfc5
+        with:
+          draft: true
+          files: |
+            ${{ steps.version.outputs.zip }}
+            ${{ steps.version.outputs.unitypackage }}
