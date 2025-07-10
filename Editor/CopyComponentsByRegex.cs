@@ -35,6 +35,8 @@
 		static bool isClothNNS = false;
 		static bool copyTransform = false;
 
+		Vector2 scrollPosition;
+
 		void OnEnable () {
 			pattern = EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/pattern") ?? "";
 			isRemoveBeforeCopy = bool.Parse (EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/isRemoveBeforeCopy") ?? isRemoveBeforeCopy.ToString ());
@@ -419,84 +421,92 @@
 
 		private void OnGUI () {
 			activeObject = Selection.activeGameObject;
-			EditorGUILayout.LabelField ("アクティブなオブジェクト");
-			using (new GUILayout.VerticalScope (GUI.skin.box)) {
-				EditorGUILayout.LabelField (activeObject ? activeObject.name : "");
-			}
-			if (!activeObject) {
-				return;
-			}
 
-			pattern = EditorGUILayout.TextField ("正規表現", pattern);
-			EditorUserSettings.SetConfigValue ("CopyComponentsByRegex/pattern", pattern);
-
-			if (GUILayout.Button ("Copy")) {
-				// initialize class variables
-				copyTree = new TreeItem (activeObject);
-				root = activeObject.transform;
-				transforms = new List<Transform> ();
-				components = new List<Component> ();
-
-				var regex = new Regex (pattern);
-				CopyWalkdown (activeObject, ref copyTree, ref regex);
-			}
-
-			EditorGUILayout.LabelField ("コピー中のオブジェクト");
-			using (new GUILayout.VerticalScope (GUI.skin.box)) {
-				EditorGUILayout.LabelField (root ? root.name : "");
-			}
-
-			EditorUserSettings.SetConfigValue (
-				"CopyComponentsByRegex/copyTransform",
-				(copyTransform = GUILayout.Toggle (copyTransform, "Transformがマッチした場合値をコピー")).ToString ()
-			);
-			EditorUserSettings.SetConfigValue (
-				"CopyComponentsByRegex/isRemoveBeforeCopy",
-				(isRemoveBeforeCopy = GUILayout.Toggle (isRemoveBeforeCopy, "コピー先に同じコンポーネントがあったら削除")).ToString ()
-			);
-			EditorUserSettings.SetConfigValue (
-				"CopyComponentsByRegex/isObjectCopy",
-				(isObjectCopy = GUILayout.Toggle (isObjectCopy, "コピー先にオブジェクトがなかったらオブジェクトをコピー")).ToString ()
-			);
-			if (isObjectCopy) {
+			scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
+			try {
+				EditorGUILayout.LabelField ("アクティブなオブジェクト");
 				using (new GUILayout.VerticalScope (GUI.skin.box)) {
-					EditorUserSettings.SetConfigValue (
-						"CopyComponentsByRegex/isObjectCopyMatchOnly",
-						(isObjectCopyMatchOnly = GUILayout.Toggle (isObjectCopyMatchOnly, "マッチしたコンポーネントを持つオブジェクトのみコピー")).ToString ()
-					);
+					EditorGUILayout.LabelField (activeObject ? activeObject.name : "");
 				}
-			}
-			EditorUserSettings.SetConfigValue (
-				"CopyComponentsByRegex/isClothNNS",
-				(isClothNNS = GUILayout.Toggle (isClothNNS, "ClothコンポーネントのConstraintsを一番近い頂点からコピー")).ToString ()
-			);
-
-			if (GUILayout.Button ("Paste")) {
-				if (copyTree == null || root == null) {
+				if (!activeObject) {
 					return;
 				}
 
-				if (isRemoveBeforeCopy) {
-					RemoveWalkdown (activeObject, ref copyTree);
+				pattern = EditorGUILayout.TextField ("正規表現", pattern);
+				EditorUserSettings.SetConfigValue ("CopyComponentsByRegex/pattern", pattern);
+
+				if (GUILayout.Button ("Copy")) {
+					// initialize class variables
+					copyTree = new TreeItem (activeObject);
+					root = activeObject.transform;
+					transforms = new List<Transform> ();
+					components = new List<Component> ();
+
+					var regex = new Regex (pattern);
+					CopyWalkdown (activeObject, ref copyTree, ref regex);
 				}
 
-				if (isObjectCopy) {
-					CopyObjectWalkdown (root, ref copyTree);
+				EditorGUILayout.LabelField ("コピー中のオブジェクト");
+				using (new GUILayout.VerticalScope (GUI.skin.box)) {
+					EditorGUILayout.LabelField (root ? root.name : "");
 				}
-				MergeWalkdown (activeObject, ref copyTree);
-				UpdateProperties (activeObject.transform);
-			}
 
-			GUIStyle labelStyle = new GUIStyle (GUI.skin.label);
-			labelStyle.wordWrap = true;
-			using (new GUILayout.VerticalScope (GUI.skin.box)) {
-				GUILayout.Label (
-					"「一番近い頂点からコピー」を利用する場合はあらかじめClothのコピー先にClothを追加するか、" +
-					"最初はチェックなしでコピーした後、別途Clothのみを対象にして「一番近い頂点からコピー」を行ってください。" +
-					"\n(UnityのClothコンポーネントの初期化時に頂点座標がずれてるのが原因のため現在は修正困難です)",
-					labelStyle
+				EditorUserSettings.SetConfigValue (
+					"CopyComponentsByRegex/copyTransform",
+					(copyTransform = GUILayout.Toggle (copyTransform, "Transformがマッチした場合値をコピー")).ToString ()
 				);
-			}
+				EditorUserSettings.SetConfigValue (
+					"CopyComponentsByRegex/isRemoveBeforeCopy",
+					(isRemoveBeforeCopy = GUILayout.Toggle (isRemoveBeforeCopy, "コピー先に同じコンポーネントがあったら削除")).ToString ()
+				);
+				EditorUserSettings.SetConfigValue (
+					"CopyComponentsByRegex/isObjectCopy",
+					(isObjectCopy = GUILayout.Toggle (isObjectCopy, "コピー先にオブジェクトがなかったらオブジェクトをコピー")).ToString ()
+				);
+				if (isObjectCopy) {
+					using (new GUILayout.VerticalScope (GUI.skin.box)) {
+						EditorUserSettings.SetConfigValue (
+							"CopyComponentsByRegex/isObjectCopyMatchOnly",
+							(isObjectCopyMatchOnly = GUILayout.Toggle (isObjectCopyMatchOnly, "マッチしたコンポーネントを持つオブジェクトのみコピー")).ToString ()
+						);
+					}
+				}
+				EditorUserSettings.SetConfigValue (
+					"CopyComponentsByRegex/isClothNNS",
+					(isClothNNS = GUILayout.Toggle (isClothNNS, "ClothコンポーネントのConstraintsを一番近い頂点からコピー")).ToString ()
+				);
+
+				if (GUILayout.Button ("Paste")) {
+					if (copyTree == null || root == null) {
+						return;
+					}
+
+					if (isRemoveBeforeCopy) {
+						RemoveWalkdown (activeObject, ref copyTree);
+					}
+
+					if (isObjectCopy) {
+						CopyObjectWalkdown (root, ref copyTree);
+					}
+					MergeWalkdown (activeObject, ref copyTree);
+					UpdateProperties (activeObject.transform);
+				}
+
+				GUIStyle labelStyle = new GUIStyle (GUI.skin.label);
+				labelStyle.wordWrap = true;
+				using (new GUILayout.VerticalScope (GUI.skin.box)) {
+					GUILayout.Label (
+						"「一番近い頂点からコピー」を利用する場合はあらかじめClothのコピー先にClothを追加するか、" +
+						"最初はチェックなしでコピーした後、別途Clothのみを対象にして「一番近い頂点からコピー」を行ってください。" +
+						"\n(UnityのClothコンポーネントの初期化時に頂点座標がずれてるのが原因のため現在は修正困難です)",
+						labelStyle
+					);
+				}
+            }
+            finally
+            {
+				EditorGUILayout.EndScrollView();
+            }
 		}
 	}
 }
