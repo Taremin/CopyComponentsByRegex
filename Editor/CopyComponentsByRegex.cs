@@ -1,7 +1,9 @@
 ﻿namespace CopyComponentsByRegex {
 	using System.Collections.Generic;
 	using System.Collections;
+	using System.IO;
 	using System.Linq;
+	using System.Runtime.CompilerServices;
 	using System.Text.RegularExpressions;
 	using UnityEditor;
 	using UnityEngine;
@@ -22,7 +24,17 @@
 		}
 	}
 
+	[System.Serializable]
+	class PackageInfo {
+		public string name;
+		public string displayName;
+		public string version;
+		public string unity;
+		public string description;
+	}
+
 	public class CopyComponentsByRegex : EditorWindow {
+		static string version = "";
 		static GameObject activeObject;
 		static string pattern = "";
 		static TreeItem copyTree = null;
@@ -37,7 +49,17 @@
 
 		Vector2 scrollPosition;
 
+		string GetSelfPath([CallerFilePath] string filepath = "") {
+			return filepath;
+		}
+
 		void OnEnable () {
+			var __file__ = GetSelfPath();
+			string relativePath = new System.Uri(Application.dataPath).MakeRelativeUri(new System.Uri(__file__)).ToString();
+			string currentDirectory = Path.GetDirectoryName(relativePath);
+			var packageInfo = JsonUtility.FromJson<PackageInfo>(LoadSmallFile(currentDirectory + "/../package.json"));
+			version = packageInfo.version;
+
 			pattern = EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/pattern") ?? "";
 			isRemoveBeforeCopy = bool.Parse (EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/isRemoveBeforeCopy") ?? isRemoveBeforeCopy.ToString ());
 			isObjectCopy = bool.Parse (EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/isObjectCopy") ?? isObjectCopy.ToString ());
@@ -57,6 +79,15 @@
 		public static void ShowWindow () {
 			activeObject = Selection.activeGameObject;
 			EditorWindow.GetWindow (typeof (CopyComponentsByRegex));
+		}
+
+		string LoadSmallFile(string filePath)
+		{
+			StreamReader reader = new StreamReader(filePath);
+			string datastr = reader.ReadToEnd();
+			reader.Close();
+
+			return datastr;
 		}
 
 		static void CopyWalkdown (GameObject go, ref TreeItem tree, ref Regex regex, int depth = 0) {
@@ -424,6 +455,10 @@
 
 			scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
 			try {
+				using (new GUILayout.VerticalScope(GUI.skin.box)) {
+					EditorGUILayout.LabelField($"{typeof(CopyComponentsByRegex).Namespace} Version: " + version);
+				}
+
 				EditorGUILayout.LabelField ("アクティブなオブジェクト");
 				using (new GUILayout.VerticalScope (GUI.skin.box)) {
 					EditorGUILayout.LabelField (activeObject ? activeObject.name : "");
