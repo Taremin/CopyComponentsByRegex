@@ -22,7 +22,7 @@
 		}
 	}
 
-	public class CopyComponentsByRegexWindow : EditorWindow {
+	public class CopyComponentsByRegex : EditorWindow {
 		static GameObject activeObject;
 		static string pattern = "";
 		static TreeItem copyTree = null;
@@ -54,7 +54,7 @@
 		[MenuItem ("GameObject/Copy Components By Regex", false, 20)]
 		public static void ShowWindow () {
 			activeObject = Selection.activeGameObject;
-			EditorWindow.GetWindow (typeof (CopyComponentsByRegexWindow));
+			EditorWindow.GetWindow (typeof (CopyComponentsByRegex));
 		}
 
 		static void CopyWalkdown (GameObject go, ref TreeItem tree, ref Regex regex, int depth = 0) {
