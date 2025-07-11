@@ -46,7 +46,7 @@ jobs:
         run: mkdir -p "Assets/${{ github.repository_owner }}/${{ github.event.repository.name }}"
 
       - name: Move to Unitypackage Directory
-        run: find . -mindepth 1 -maxdepth 1 -not -name Assets -exec mv -t "Assets/${{ github.repository_owner }}/${{ github.event.repository.name }}" {} + 
+        run: find . -mindepth 1 -maxdepth 1 -regextype egrep -not -regex '^(Assets/.*|.*\.zip)' -exec mv -t "Assets/${{ github.repository_owner }}/${{ github.event.repository.name }}" {} + 
 
       - name: Create .meta list
         run: find "Assets/" -name "*.meta" >> metaList
