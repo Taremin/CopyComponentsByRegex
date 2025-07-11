@@ -58,7 +58,7 @@ jobs:
           include-files: metaList
         
       - name: Make Release
-        uses: softprops/action-gh-release@1e07f4398721186383de40550babbdf2b84acfc5
+        uses: softprops/action-gh-release@v2
         with:
           draft: true
           files: |
