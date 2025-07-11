@@ -39,6 +39,9 @@ jobs:
           filename: "${{ steps.version.outputs.zip }}"
           exclusions: '*.git*'
 
+      - name: Check Zip
+        run: ls -al ${{ steps.version.outputs.zip }}
+
       - name: Create UnityPackage Directory
         run: mkdir -p "Assets/${{ github.repository_owner }}/${{ github.event.repository.name }}"
 
