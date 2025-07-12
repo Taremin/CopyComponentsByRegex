@@ -67,3 +67,4 @@ jobs:
           files: |
             ${{ steps.version.outputs.zip }}
             ${{ steps.version.outputs.unitypackage }}
+            "Assets/${{ github.repository_owner }}/${{ github.event.repository.name }}/package.json"
