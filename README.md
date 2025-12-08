@@ -55,7 +55,7 @@ Cloth コンポーネントのコピーは同じモデル同士で Cloth 部分�
 
 ## より詳しい説明
 
-https://taremin.kibe.la/shared/entries/95c1d6cf-9fcd-4a57-8849-677529e50e77 により詳しい説明を書きましたので、もしよければそちらも参考にしてください。
+https://taremin.github.io/2018/06/12/4-CopyComponentsByRegex_%E3%81%AE%E7%B0%A1%E5%8D%98%E3%81%AA%E4%BD%BF%E3%81%84%E6%96%B9%E3%81%A8%E8%AA%AC%E6%98%8E/ により詳しい説明を書きましたので、もしよければそちらも参考にしてください。
 
 
 ## ライセンス
