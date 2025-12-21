@@ -58,6 +58,36 @@ Cloth コンポーネントのコピーは同じモデル同士で Cloth 部分�
 https://taremin.github.io/2018/06/12/4-CopyComponentsByRegex_%E3%81%AE%E7%B0%A1%E5%8D%98%E3%81%AA%E4%BD%BF%E3%81%84%E6%96%B9%E3%81%A8%E8%AA%AC%E6%98%8E/ により詳しい説明を書きましたので、もしよければそちらも参考にしてください。
 
 
+## テスト
+
+### 必要環境
+
+- Unity 2019.2 以降
+
+### テストの実行方法
+
+1. Unity エディタで `Window` -> `General` -> `Test Runner` を開く
+2. `EditMode` タブを選択
+3. `CopyComponentsByRegex.Tests` アセンブリのテストが表示される
+4. `Run All` ボタンでテストを実行
+
+### コマンドラインからの実行
+
+Unity Test Framework をコマンドラインから実行することも可能です：
+
+```bash
+Unity.exe -runTests -batchmode -projectPath <プロジェクトパス> -testPlatform EditMode -testResults results.xml
+```
+
+### テスト内容
+
+- **KDTreeTests**: KD木アルゴリズムの近傍探索機能をテスト
+- **CopyComponentsByRegexTests**: 基本データ構造（TreeItem, ModificationEntry等）のテスト
+- **IntegrationTests**: 複雑なオブジェクト階層を使用した統合テスト
+  - GetChildren、CopyWalkdown、MergeWalkdown などの主要機能
+  - 正規表現マッチング、階層構造の再帰処理
+
+
 ## ライセンス
 
 [MIT](./LICENSE)

@@ -7,6 +7,11 @@ using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEngine;
 
+// テストアセンブリからinternalメンバーへのアクセスを許可
+[assembly: InternalsVisibleTo("CopyComponentsByRegex.Tests")]
+
+namespace CopyComponentsByRegex {
+
 	[System.Serializable]
 	public class TreeItem {
 		public string name;
@@ -55,9 +60,9 @@ using UnityEngine;
 		static GameObject activeObject;
 		static string pattern = "";
 		static TreeItem copyTree = null;
-		static Transform root = null;
-		static List<Transform> transforms = null;
-		static List<Component> components = null;
+		internal static Transform root = null;
+		internal static List<Transform> transforms = null;
+		internal static List<Component> components = null;
 		static List<ModificationEntry> modificationLogs = new List<ModificationEntry>();
 		static List<ModificationEntry> modificationObjectLogs = new List<ModificationEntry>();
 		static bool isRemoveBeforeCopy = false;
@@ -111,7 +116,7 @@ using UnityEngine;
 			return datastr;
 		}
 
-		static void CopyWalkdown (GameObject go, ref TreeItem tree, ref Regex regex, int depth = 0) {
+		internal static void CopyWalkdown (GameObject go, ref TreeItem tree, ref Regex regex, int depth = 0) {
 			transforms.Add (go.transform);
 
 			// Components
