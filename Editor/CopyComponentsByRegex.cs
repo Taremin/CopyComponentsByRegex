@@ -1,15 +1,14 @@
-﻿namespace CopyComponentsByRegex {
-	using System.Collections.Generic;
-	using System.Collections;
-	using System.IO;
-	using System.Linq;
-	using System.Runtime.CompilerServices;
-	using System.Text.RegularExpressions;
-	using UnityEditor;
-	using UnityEngine;
+﻿using System.Collections.Generic;
+using System.Collections;
+using System.IO;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
+using UnityEditor;
+using UnityEngine;
 
 	[System.Serializable]
-	class TreeItem {
+	public class TreeItem {
 		public string name;
 		public string type;
 		public GameObject gameObject;
@@ -33,6 +32,24 @@
 		public string description;
 	}
 
+	public enum ModificationOperation {
+		None,
+		Add,
+		Remove,
+		Update,
+		CreateObject
+	}
+
+	public class ModificationEntry {
+		public GameObject targetObject;
+		public string targetPath;
+		public string componentType;
+		public ModificationOperation operation;
+		public string message;
+		public Component createdComponent; // 実際に作成されたコンポーネント
+		public GameObject createdObject;   // 実際に作成されたオブジェクト
+	}
+
 	public class CopyComponentsByRegex : EditorWindow {
 		static string version = "";
 		static GameObject activeObject;
@@ -41,11 +58,14 @@
 		static Transform root = null;
 		static List<Transform> transforms = null;
 		static List<Component> components = null;
+		static List<ModificationEntry> modificationLogs = new List<ModificationEntry>();
+		static List<ModificationEntry> modificationObjectLogs = new List<ModificationEntry>();
 		static bool isRemoveBeforeCopy = false;
 		static bool isObjectCopy = false;
 		static bool isObjectCopyMatchOnly = false;
 		static bool isClothNNS = false;
 		static bool copyTransform = false;
+		static bool showReportAfterPaste = false;
 
 		Vector2 scrollPosition;
 
@@ -66,6 +86,7 @@
 			isObjectCopyMatchOnly = bool.Parse (EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/isObjectCopyMatchOnly") ?? isObjectCopyMatchOnly.ToString ());
 			isClothNNS = bool.Parse (EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/isClothNNS") ?? isClothNNS.ToString ());
 			copyTransform = bool.Parse (EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/copyTransform") ?? copyTransform.ToString ());
+			showReportAfterPaste = bool.Parse (EditorUserSettings.GetConfigValue ("CopyComponentsByRegex/showReportAfterPaste") ?? showReportAfterPaste.ToString ());
 		}
 
 		void OnSelectionChange () {
@@ -113,7 +134,7 @@
 			}
 		}
 
-		static void CopyObjectWalkdown (Transform src, ref TreeItem tree) {
+		static void CopyObjectWalkdown (Transform src, ref TreeItem tree, bool dryRun = false) {
 			foreach (TreeItem child in tree.children) {
 				var next = child;
 				if (!isObjectCopyMatchOnly || child.components.Count > 0) {
@@ -122,9 +143,9 @@
 						continue;
 					}
 					route.Add (child);
-					CopyObject (root, activeObject.transform, route);
+					CopyObject (root, activeObject.transform, route, dryRun);
 				}
-				CopyObjectWalkdown (child.gameObject.transform, ref next);
+				CopyObjectWalkdown (child.gameObject.transform, ref next, dryRun);
 			}
 		}
 
@@ -148,9 +169,11 @@
 			return down;
 		}
 
-		static Transform CopyObject (Transform srcRoot, Transform dstRoot, List<TreeItem> route) {
+		static Transform CopyObject (Transform srcRoot, Transform dstRoot, List<TreeItem> route, bool dryRun = false) {
 			var src = srcRoot;
 			var dst = dstRoot;
+
+			string currentPath = dstRoot.name;
 
 			foreach (TreeItem current in route) {
 				var item = current;
@@ -168,10 +191,36 @@
 						break;
 					}
 				}
+				
+				currentPath += "/" + current.name;
+
 				if (srcChild != null && dstChild == null) {
+					if (dryRun || showReportAfterPaste) {
+						// 既にこの作成ログが記録されているか確認
+						if (!modificationObjectLogs.Any(x => x.targetPath == currentPath && x.operation == ModificationOperation.CreateObject)) {
+							modificationObjectLogs.Add(new ModificationEntry {
+								targetPath = currentPath,
+								operation = ModificationOperation.CreateObject,
+								message = "新規オブジェクト"
+							});
+						}
+						// Dry Runではオブジェクトを作成しないので、ここで中断
+						if (dryRun) {
+							return null;
+						}
+					}
+
 					GameObject childObject = (GameObject)Object.Instantiate (srcChild.gameObject, dst);
 					childObject.name = current.name;
 					dst = dstChild = childObject.transform;
+
+					// ログに作成されたオブジェクトを紐付ける
+					if (showReportAfterPaste) {
+						var log = modificationObjectLogs.FirstOrDefault(x => x.targetPath == currentPath && x.operation == ModificationOperation.CreateObject);
+						if (log != null) {
+							log.createdObject = childObject;
+						}
+					}
 
 					// コピーしたオブジェクトに対しては自動的に同種コンポーネントの削除を行う
 					RemoveWalkdown (childObject, ref item);
@@ -184,73 +233,137 @@
 			return dst;
 		}
 
-		static void MergeWalkdown (GameObject go, ref TreeItem tree, int depth = 0) {
+		static void RunComponentOperation(GameObject go, string componentType, ModificationOperation op, string message, bool dryRun, System.Func<Component> action) {
+			bool logAdded = false;
+			if (dryRun || showReportAfterPaste) {
+				if (!string.IsNullOrEmpty(message)) {
+					modificationLogs.Add(new ModificationEntry {
+						targetObject = go,
+						componentType = componentType,
+						operation = op,
+						message = message
+					});
+					logAdded = true;
+				}
+			}
+
+			if (dryRun) {
+				return;
+			}
+
+			Component result = action();
+			
+			if (result != null) {
+				components.Add(result);
+
+				if (showReportAfterPaste && logAdded) {
+					var lastLog = modificationLogs.LastOrDefault();
+					if (lastLog != null && lastLog.targetObject == go && lastLog.componentType == componentType) {
+						lastLog.createdComponent = result;
+					}
+				}
+			}
+		}
+
+		internal static void MergeWalkdown (GameObject go, ref TreeItem tree, int depth = 0, bool dryRun = false) {
 			if (depth > 0 && go.name != tree.name) {
 				return;
 			}
 
 			// copy components
 			foreach (Component component in tree.components) {
-				UnityEditorInternal.ComponentUtility.CopyComponent (component);
-				// 同じ種類のコンポーネントがある場合、既存のコンポーネントに上書きすることも出来る。
-				// しかし、一つのオブジェクトに複数のコンポーネントを設定したい場合もあるのでとりあえずコメントアウトしておく。
-				// 要望などがあれば切り替えても良いかもしれない。
-				/*
-				var targetComponent = go.GetComponent(type);
-				if (targetComponent) {
-					UnityEditorInternal.ComponentUtility.PasteComponentValues(targetComponent);
-				} else {
-					UnityEditorInternal.ComponentUtility.PasteComponentAsNew(go);
-				}
-				*/
-				var targetComponent = go.GetComponent(component.GetType());
-				if (component is Cloth) {
-					var cloth = go.GetComponent<Cloth> () == null ? go.AddComponent<Cloth> () : go.GetComponent<Cloth> ();
-					CopyProperties (component, cloth);
-				} else if (component is Transform) {
-					if (copyTransform) {
-						UnityEditorInternal.ComponentUtility.PasteComponentValues (targetComponent);
+				var componentType = component.GetType();
+				var targetComponent = go.GetComponent(componentType);
+
+				// 1. Transform
+				if (component is Transform) {
+					if (!copyTransform) {
+						continue;
 					}
-				} else {
-					UnityEditorInternal.ComponentUtility.PasteComponentAsNew (go);
+					
+					ModificationOperation op = ModificationOperation.None;
+					string msg = "";
+					
+					if (targetComponent != null && (componentType.Name == "Transform" || componentType.Name == "RectTransform")) {
+						op = ModificationOperation.Update;
+						msg = "値の更新";
+					}
+
+					RunComponentOperation(go, componentType.Name, op, msg, dryRun, () => {
+						UnityEditorInternal.ComponentUtility.CopyComponent(component);
+						if (targetComponent != null) {
+							UnityEditorInternal.ComponentUtility.PasteComponentValues(targetComponent);
+							return targetComponent;
+						}
+						return null;
+					});
+					continue;
 				}
 
-				Component[] comps = go.GetComponents<Component> ();
-				var dstComponent = comps[comps.Length - 1];
-				components.Add (dstComponent);
-
+				// 2. Cloth
 				if (component is Cloth) {
-					var srcCloth = (component as Cloth);
-					var dstCloth = (dstComponent as Cloth);
-					var srcCoefficients = srcCloth.coefficients;
-					var dstCoefficients = dstCloth.coefficients;
+					ModificationOperation op = targetComponent != null ? ModificationOperation.Update : ModificationOperation.Add;
+					string msg = targetComponent != null 
+						? "プロパティの更新" + (isClothNNS ? " (NNS)" : "") 
+						: "新規貼り付け";
 
-					if (isClothNNS) {
-						var srcVertices = srcCloth.vertices;
-						var dstVertives = dstCloth.vertices;
+					RunComponentOperation(go, componentType.Name, op, msg, dryRun, () => {
+						var cloth = go.GetComponent<Cloth> () == null ? go.AddComponent<Cloth> () : go.GetComponent<Cloth> ();
+						CopyProperties (component, cloth);
 
-						// build KD-Tree
-						var kdtree = new KDTree (
-							srcVertices,
-							0,
-							(srcVertices.Length < srcCoefficients.Length ? srcVertices.Length : srcCoefficients.Length) - 1
-						);
+						// NNS / Coefficient Copy
+						var srcCloth = (component as Cloth);
+						var dstCloth = cloth;
+						
+						if (dstCloth != null) {
+							var srcCoefficients = srcCloth.coefficients;
+							var dstCoefficients = dstCloth.coefficients;
 
-						for (int i = 0, il = dstCoefficients.Length, ml = dstVertives.Length; i < il && i < ml; ++i) {
-							var srcIdx = kdtree.FindNearest (dstVertives[i]);
-							dstCoefficients[i].collisionSphereDistance = srcCoefficients[srcIdx].collisionSphereDistance;
-							dstCoefficients[i].maxDistance = srcCoefficients[srcIdx].maxDistance;
-						}
-						dstCloth.coefficients = dstCoefficients;
-					} else {
-						if (srcCoefficients.Length == dstCoefficients.Length) {
-							for (int i = 0, il = srcCoefficients.Length; i < il; ++i) {
-								dstCoefficients[i].collisionSphereDistance = srcCoefficients[i].collisionSphereDistance;
-								dstCoefficients[i].maxDistance = srcCoefficients[i].maxDistance;
+							if (isClothNNS) {
+								var srcVertices = srcCloth.vertices;
+								var dstVertives = dstCloth.vertices;
+
+								// build KD-Tree
+								var kdtree = new KDTree (
+									srcVertices,
+									0,
+									(srcVertices.Length < srcCoefficients.Length ? srcVertices.Length : srcCoefficients.Length) - 1
+								);
+
+								for (int i = 0, il = dstCoefficients.Length, ml = dstVertives.Length; i < il && i < ml; ++i) {
+									var srcIdx = kdtree.FindNearest (dstVertives[i]);
+									dstCoefficients[i].collisionSphereDistance = srcCoefficients[srcIdx].collisionSphereDistance;
+									dstCoefficients[i].maxDistance = srcCoefficients[srcIdx].maxDistance;
+								}
+								dstCloth.coefficients = dstCoefficients;
+							} else {
+								if (srcCoefficients.Length == dstCoefficients.Length) {
+									for (int i = 0, il = srcCoefficients.Length; i < il; ++i) {
+										dstCoefficients[i].collisionSphereDistance = srcCoefficients[i].collisionSphereDistance;
+										dstCoefficients[i].maxDistance = srcCoefficients[i].maxDistance;
+									}
+									dstCloth.coefficients = dstCoefficients;
+								}
 							}
-							dstCloth.coefficients = dstCoefficients;
 						}
-					}
+						return cloth;
+					});
+					continue;
+				}
+
+				// 3. Other Components
+				{
+					ModificationOperation op = ModificationOperation.Add;
+					string msg = targetComponent != null ? "新規貼り付け" : "コンポーネントの追加";
+
+					RunComponentOperation(go, componentType.Name, op, msg, dryRun, () => {
+						UnityEditorInternal.ComponentUtility.CopyComponent(component);
+						UnityEditorInternal.ComponentUtility.PasteComponentAsNew(go);
+						
+						Component[] comps = go.GetComponents<Component>();
+						Component dstComponent = comps[comps.Length - 1];
+						return dstComponent;
+					});
 				}
 			}
 
@@ -270,12 +383,12 @@
 				Transform child = childDic[treeChild.name];
 
 				if (child.gameObject.GetType ().ToString () == treeChild.type) {
-					MergeWalkdown (child.gameObject, ref next, depth + 1);
+					MergeWalkdown (child.gameObject, ref next, depth + 1, dryRun);
 				}
 			}
 		}
 
-		static void RemoveWalkdown (GameObject go, ref TreeItem tree, int depth = 0) {
+		static void RemoveWalkdown (GameObject go, ref TreeItem tree, int depth = 0, bool dryRun = false) {
 			if (depth > 0 && go.name != tree.name) {
 				return;
 			}
@@ -288,6 +401,20 @@
 					if (component is UnityEngine.Transform) {
 						continue;
 					}
+
+					if (dryRun || showReportAfterPaste) {
+						modificationLogs.Add(new ModificationEntry {
+							targetObject = go,
+							componentType = component.GetType().Name,
+							operation = ModificationOperation.Remove,
+							message = "削除"
+						});
+						
+						if (dryRun) {
+							continue;
+						}
+					}
+					
 					Object.DestroyImmediate (component);
 				}
 			}
@@ -302,14 +429,14 @@
 						child.gameObject.GetType ().ToString () == treeChild.type
 					) {
 						next = treeChild;
-						RemoveWalkdown (child.gameObject, ref next, depth + 1);
+						RemoveWalkdown (child.gameObject, ref next, depth + 1, dryRun);
 						break;
 					}
 				}
 			}
 		}
 
-		static Transform[] GetChildren (GameObject go) {
+		internal static Transform[] GetChildren (GameObject go) {
 			int count = go.transform.childCount;
 			var children = new Transform[count];
 
@@ -450,6 +577,27 @@
 			return false;
 		}
 
+		private void ExecuteDryRun() {
+			modificationLogs.Clear();
+			modificationObjectLogs.Clear();
+
+			if (copyTree == null || root == null) {
+				return;
+			}
+
+			if (isRemoveBeforeCopy) {
+				RemoveWalkdown (activeObject, ref copyTree, 0, true);
+			}
+
+			if (isObjectCopy) {
+				CopyObjectWalkdown (root, ref copyTree, true);
+			}
+			MergeWalkdown (activeObject, ref copyTree, 0, true);
+		}
+
+
+
+
 		private void OnGUI () {
 			activeObject = Selection.activeGameObject;
 
@@ -511,10 +659,19 @@
 					(isClothNNS = GUILayout.Toggle (isClothNNS, "ClothコンポーネントのConstraintsを一番近い頂点からコピー")).ToString ()
 				);
 
+				EditorUserSettings.SetConfigValue (
+					"CopyComponentsByRegex/showReportAfterPaste",
+					(showReportAfterPaste = GUILayout.Toggle(showReportAfterPaste, "Paste時に結果を表示")).ToString()
+				);
+
 				if (GUILayout.Button ("Paste")) {
 					if (copyTree == null || root == null) {
 						return;
 					}
+
+					// Clear logs
+					modificationLogs.Clear();
+					modificationObjectLogs.Clear();
 
 					if (isRemoveBeforeCopy) {
 						RemoveWalkdown (activeObject, ref copyTree);
@@ -525,7 +682,20 @@
 					}
 					MergeWalkdown (activeObject, ref copyTree);
 					UpdateProperties (activeObject.transform);
+					
+					if (showReportAfterPaste && (modificationLogs.Count > 0 || modificationObjectLogs.Count > 0)) {
+						ModificationReportPopup.Show(copyTree, activeObject, modificationLogs, modificationObjectLogs, isObjectCopy, false);
+					}
 				}
+
+				if (GUILayout.Button ("Dry Run")) {
+					ExecuteDryRun();
+					if (modificationLogs.Count > 0 || modificationObjectLogs.Count > 0) {
+						ModificationReportPopup.Show(copyTree, activeObject, modificationLogs, modificationObjectLogs, isObjectCopy, true);
+					}
+				}
+
+
 
 				GUIStyle labelStyle = new GUIStyle (GUI.skin.label);
 				labelStyle.wordWrap = true;
@@ -543,5 +713,7 @@
 				EditorGUILayout.EndScrollView();
             }
 		}
+
+
 	}
 }
