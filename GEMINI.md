@@ -57,7 +57,8 @@ Unityエディタ拡張機能。
     - `TransformName`: 置換ルールを適用して名前を変換
     - `NamesMatch`: 2つの名前が置換ルールを考慮してマッチするか判定
     - `TryFindMatchingName`: 辞書から置換ルールを考慮してマッチする子を検索
-- **HumanoidBoneエイリアス**: VRoid Studio形式、mixamo形式、FBX標準形式のボーン名に対応
+    - `GetBoneMapping`: AnimatorからHumanoidボーンマッピングを動的に取得
+    - `IsHumanoid`: GameObjectがHumanoidリグかチェック
 
 ### `ReplacementRule.cs`
 - **役割**: 置換ルールのデータ構造を定義

@@ -147,22 +147,14 @@ flowchart TD
 > コピー元・コピー先の両方が**Humanoidリグ**として設定されている必要があります。
 > 非Humanoidの場合、警告ダイアログが表示されます。
 
-```mermaid
-flowchart TD
-    A["コピー元名"] --> B{"エイリアス<br>照合"}
-    C["コピー先名"] --> B
-    
-    B --> D["同じボーンの<br>エイリアスか?"]
-    D -->|"Yes"| E["✅ マッチ"]
-    D -->|"No"| F["❌ 不一致"]
-    
-    subgraph "エイリアス例: Head"
-        G["Head"]
-        H["J_Bip_C_Head"]
-        I["mixamorig:Head"]
-        J["head"]
-    end
-```
+**動的マッピングの仕組み：**
+
+1. Copyボタン押下時、コピー元のAnimatorからボーンマッピングを取得
+2. Pasteボタン押下時、コピー先のAnimatorからボーンマッピングを取得
+3. 同じ`HumanBodyBones`にマップされたボーン同士をマッチ
+
+これにより、VRoid Studio形式（`J_Bip_*`）、mixamo形式（`mixamorig:*`）、FBX標準形式など、
+異なる命名規則のボーン同士でも、UnityのHumanoidリターゲティング設定が正しければマッチできます。
 
 ---
 
@@ -205,23 +197,23 @@ graph TD
     ALL --> LFINGER & RFINGER
 ```
 
-### 各グループに含まれるボーン
+### ボーングループと含まれるボーン
 
-#### 頭グループ
-| 標準名 | VRoid Studio形式 | mixamo形式 |
-|-------|---------|-----------|
-| Head | J_Bip_C_Head | mixamorig:Head |
-| LeftEye | J_Adj_L_FaceEye | mixamorig:LeftEye |
-| RightEye | J_Adj_R_FaceEye | mixamorig:RightEye |
-| Jaw | J_Adj_C_Jaw | - |
+ボーングループを指定すると、そのグループに属する`HumanBodyBones`のみがマッチ対象になります。
 
-#### 左腕グループ
-| 標準名 | VRoid Studio形式 | mixamo形式 |
-|-------|---------|-----------|
-| LeftShoulder | J_Bip_L_Shoulder | mixamorig:LeftShoulder |
-| LeftUpperArm | J_Bip_L_UpperArm | mixamorig:LeftArm |
-| LeftLowerArm | J_Bip_L_LowerArm | mixamorig:LeftForeArm |
-| LeftHand | J_Bip_L_Hand | mixamorig:LeftHand |
+| グループ | 含まれるHumanBodyBones |
+|--------|------------------------|
+| 頭 | Head, LeftEye, RightEye, Jaw |
+| 首 | Neck |
+| 胸 | Chest, UpperChest |
+| 脊椎 | Spine |
+| ヒップ | Hips |
+| 左腕 | LeftShoulder, LeftUpperArm, LeftLowerArm, LeftHand |
+| 右腕 | RightShoulder, RightUpperArm, RightLowerArm, RightHand |
+| 左脚 | LeftUpperLeg, LeftLowerLeg, LeftFoot, LeftToes |
+| 右脚 | RightUpperLeg, RightLowerLeg, RightFoot, RightToes |
+| 左手指 | 左手の各指のボーン |
+| 右手指 | 右手の各指のボーン |
 
 ---
 
