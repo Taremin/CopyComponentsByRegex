@@ -71,6 +71,10 @@ namespace CopyComponentsByRegex {
 		static bool isClothNNS = false;
 		static bool copyTransform = false;
 		static bool showReportAfterPaste = false;
+		
+		// 置換リスト機能
+		internal static List<ReplacementRule> replacementRules = new List<ReplacementRule>();
+		static bool showReplacementRules = false;
 
 		Vector2 scrollPosition;
 
@@ -184,14 +188,15 @@ namespace CopyComponentsByRegex {
 				var item = current;
 				Transform srcChild = null;
 				Transform dstChild = null;
+				// 置換ルールを考慮した子検索
 				foreach (Transform child in GetChildren (src.gameObject)) {
-					if (child.name == current.name) {
+					if (NameMatcher.NamesMatch(current.name, child.name, replacementRules)) {
 						srcChild = child;
 						break;
 					}
 				}
 				foreach (Transform child in GetChildren (dst.gameObject)) {
-					if (child.name == current.name) {
+					if (NameMatcher.NamesMatch(current.name, child.name, replacementRules)) {
 						dstChild = child;
 						break;
 					}
@@ -271,7 +276,8 @@ namespace CopyComponentsByRegex {
 		}
 
 		internal static void MergeWalkdown (GameObject go, ref TreeItem tree, int depth = 0, bool dryRun = false) {
-			if (depth > 0 && go.name != tree.name) {
+			// 置換ルールを考慮した名前マッチング
+			if (depth > 0 && !NameMatcher.NamesMatch(tree.name, go.name, replacementRules)) {
 				return;
 			}
 
@@ -381,11 +387,12 @@ namespace CopyComponentsByRegex {
 			foreach (TreeItem treeChild in tree.children) {
 				var next = treeChild;
 
-				if (!childDic.ContainsKey (treeChild.name)) {
+				// 置換ルールを考慮した子検索
+				if (!NameMatcher.TryFindMatchingName(childDic, treeChild.name, replacementRules, out string matchedName)) {
 					continue;
 				}
 
-				Transform child = childDic[treeChild.name];
+				Transform child = childDic[matchedName];
 
 				if (child.gameObject.GetType ().ToString () == treeChild.type) {
 					MergeWalkdown (child.gameObject, ref next, depth + 1, dryRun);
@@ -394,7 +401,8 @@ namespace CopyComponentsByRegex {
 		}
 
 		static void RemoveWalkdown (GameObject go, ref TreeItem tree, int depth = 0, bool dryRun = false) {
-			if (depth > 0 && go.name != tree.name) {
+			// 置換ルールを考慮した名前マッチング
+			if (depth > 0 && !NameMatcher.NamesMatch(tree.name, go.name, replacementRules)) {
 				return;
 			}
 
@@ -429,8 +437,9 @@ namespace CopyComponentsByRegex {
 			foreach (Transform child in children) {
 				TreeItem next = null;
 				foreach (TreeItem treeChild in tree.children) {
+					// 置換ルールを考慮した名前マッチング
 					if (
-						child.gameObject.name == treeChild.name &&
+						NameMatcher.NamesMatch(treeChild.name, child.gameObject.name, replacementRules) &&
 						child.gameObject.GetType ().ToString () == treeChild.type
 					) {
 						next = treeChild;
@@ -669,6 +678,9 @@ namespace CopyComponentsByRegex {
 					(showReportAfterPaste = GUILayout.Toggle(showReportAfterPaste, "Paste時に結果を表示")).ToString()
 				);
 
+				// 置換リストセクション
+				DrawReplacementRulesSection();
+
 				if (GUILayout.Button ("Paste")) {
 					if (copyTree == null || root == null) {
 						return;
@@ -720,5 +732,84 @@ namespace CopyComponentsByRegex {
 		}
 
 
+	/// <summary>
+	/// 置換リストセクションを描画
+	/// </summary>
+	private void DrawReplacementRulesSection()
+	{
+		showReplacementRules = EditorGUILayout.Foldout(showReplacementRules, "置換リスト", true);
+		
+		if (!showReplacementRules) {
+			return;
+		}
+
+		using (new GUILayout.VerticalScope(GUI.skin.box)) {
+			// ルール追加ボタン
+			using (new GUILayout.HorizontalScope()) {
+				if (GUILayout.Button("+ 正規表現", GUILayout.Width(100))) {
+					replacementRules.Add(new ReplacementRule("", ""));
+				}
+				if (GUILayout.Button("+ HumanoidBone", GUILayout.Width(120))) {
+					replacementRules.Add(new ReplacementRule(HumanoidBoneGroup.All));
+				}
+			}
+
+			// 各ルールを描画
+			int indexToRemove = -1;
+			for (int i = 0; i < replacementRules.Count; i++) {
+				using (new GUILayout.HorizontalScope()) {
+					var rule = replacementRules[i];
+
+					// 有効/無効チェックボックス
+					rule.enabled = GUILayout.Toggle(rule.enabled, "", GUILayout.Width(20));
+
+					// タイプ選択
+					var newType = (RuleType)EditorGUILayout.EnumPopup(rule.type, GUILayout.Width(100));
+					if (newType != rule.type) {
+						rule.type = newType;
+					}
+
+					if (rule.type == RuleType.Regex) {
+						// 正規表現の場合
+						GUILayout.Label("検索:", GUILayout.Width(35));
+						rule.srcPattern = GUILayout.TextField(rule.srcPattern, GUILayout.Width(100));
+						GUILayout.Label("置換:", GUILayout.Width(35));
+						rule.dstPattern = GUILayout.TextField(rule.dstPattern, GUILayout.Width(100));
+					} else {
+						// HumanoidBoneの場合
+						GUILayout.Label("ボーン:", GUILayout.Width(45));
+						
+						// ボーングループをドロップダウンで選択（日本語表示）
+						var displayNames = System.Enum.GetValues(typeof(HumanoidBoneGroup));
+						string[] options = new string[displayNames.Length];
+						int currentIndex = 0;
+						for (int j = 0; j < displayNames.Length; j++) {
+							var group = (HumanoidBoneGroup)displayNames.GetValue(j);
+							options[j] = NameMatcher.BoneGroupDisplayNames[group];
+							if (group == rule.boneGroup) {
+								currentIndex = j;
+							}
+						}
+						int newIndex = EditorGUILayout.Popup(currentIndex, options, GUILayout.Width(80));
+						rule.boneGroup = (HumanoidBoneGroup)displayNames.GetValue(newIndex);
+					}
+
+					// 削除ボタン
+					if (GUILayout.Button("-", GUILayout.Width(25))) {
+						indexToRemove = i;
+					}
+				}
+			}
+
+			// 削除処理
+			if (indexToRemove >= 0) {
+				replacementRules.RemoveAt(indexToRemove);
+			}
+
+		if (replacementRules.Count == 0) {
+				EditorGUILayout.HelpBox("置換ルールが設定されていません。\nルールがない場合は名前の完全一致のみでマッチします。", MessageType.Info);
+			}
+		}
+	}
 	}
 }
