@@ -331,5 +331,6 @@ sequenceDiagram
 |---------|------|
 | [ReplacementRule.cs](../Editor/ReplacementRule.cs) | 置換ルールのデータ構造 |
 | [NameMatcher.cs](../Editor/NameMatcher.cs) | 名前マッチングロジック |
-| [CopyComponentsByRegex.cs](../Editor/CopyComponentsByRegex.cs) | メインUIとコピーロジック |
+| [CopyComponentsByRegexWindow.cs](../Editor/CopyComponentsByRegexWindow.cs) | エディタUI |
+| [ComponentCopier.cs](../Editor/ComponentCopier.cs) | コピーロジック |
 

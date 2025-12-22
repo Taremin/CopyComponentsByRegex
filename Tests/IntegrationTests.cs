@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
+using CopyComponentsByRegex;
 
 namespace CopyComponentsByRegex.Tests
 {
@@ -44,14 +45,14 @@ namespace CopyComponentsByRegex.Tests
             // CopyComponentsByRegex の静的変数を初期化
             // これらは本来 EditorWindow のコンテキストで初期化されるが、
             // テストから直接メソッドを呼び出すために必要
-            CopyComponentsByRegex.transforms = new List<Transform>();
-            CopyComponentsByRegex.components = new List<Component>();
-            CopyComponentsByRegex.root = sourceRoot.transform;
+            ComponentCopier.transforms = new List<Transform>();
+            ComponentCopier.components = new List<Component>();
+            ComponentCopier.root = sourceRoot.transform;
             
             // マッピングとルールも初期化
-            CopyComponentsByRegex.srcBoneMapping = null;
-            CopyComponentsByRegex.dstBoneMapping = null;
-            CopyComponentsByRegex.replacementRules = new List<ReplacementRule>();
+            ComponentCopier.srcBoneMapping = null;
+            ComponentCopier.dstBoneMapping = null;
+            ComponentCopier.replacementRules = new List<ReplacementRule>();
         }
 
         /// <summary>
@@ -72,14 +73,14 @@ namespace CopyComponentsByRegex.Tests
             }
 
             // 静的変数をクリア
-            CopyComponentsByRegex.transforms = null;
-            CopyComponentsByRegex.components = null;
-            CopyComponentsByRegex.root = null;
+            ComponentCopier.transforms = null;
+            ComponentCopier.components = null;
+            ComponentCopier.root = null;
             
             // マッピングとルールをクリア
-            CopyComponentsByRegex.srcBoneMapping = null;
-            CopyComponentsByRegex.dstBoneMapping = null;
-            CopyComponentsByRegex.replacementRules = new List<ReplacementRule>();
+            ComponentCopier.srcBoneMapping = null;
+            ComponentCopier.dstBoneMapping = null;
+            ComponentCopier.replacementRules = new List<ReplacementRule>();
         }
 
         /// <summary>
@@ -94,7 +95,7 @@ namespace CopyComponentsByRegex.Tests
             var child3 = CreateTestGameObject("Child3", sourceRoot.transform);
 
             // Act
-            var children = CopyComponentsByRegex.GetChildren(sourceRoot);
+            var children = ComponentCopier.GetChildren(sourceRoot);
 
             // Assert
             Assert.AreEqual(3, children.Length);
@@ -114,7 +115,7 @@ namespace CopyComponentsByRegex.Tests
             var grandchild = CreateTestGameObject("Grandchild", child.transform);
 
             // Act
-            var children = CopyComponentsByRegex.GetChildren(sourceRoot);
+            var children = ComponentCopier.GetChildren(sourceRoot);
 
             // Assert: 直接の子のみ返される
             Assert.AreEqual(1, children.Length);
@@ -136,7 +137,7 @@ namespace CopyComponentsByRegex.Tests
             var regex = new Regex("Collider");  // Colliderにマッチ
 
             // Act
-            CopyComponentsByRegex.CopyWalkdown(sourceRoot, ref tree, ref regex);
+            ComponentCopier.CopyWalkdown(sourceRoot, ref tree, ref regex);
 
             // Assert: BoxCollider と SphereCollider のみ収集される
             Assert.AreEqual(2, tree.components.Count);
@@ -161,7 +162,7 @@ namespace CopyComponentsByRegex.Tests
             var regex = new Regex("Collider");
 
             // Act
-            CopyComponentsByRegex.CopyWalkdown(sourceRoot, ref tree, ref regex);
+            ComponentCopier.CopyWalkdown(sourceRoot, ref tree, ref regex);
 
             // Assert: 子と孫のコンポーネントも収集
             Assert.AreEqual(1, tree.children.Count);  // Child
@@ -189,7 +190,7 @@ namespace CopyComponentsByRegex.Tests
             var regex = new Regex("NonExistentComponent");
 
             // Act
-            CopyComponentsByRegex.CopyWalkdown(sourceRoot, ref tree, ref regex);
+            ComponentCopier.CopyWalkdown(sourceRoot, ref tree, ref regex);
 
             // Assert: 何も収集されない
             Assert.AreEqual(0, tree.components.Count);
@@ -224,7 +225,7 @@ namespace CopyComponentsByRegex.Tests
             var regex = new Regex("Collider");
 
             // Act
-            CopyComponentsByRegex.CopyWalkdown(sourceRoot, ref tree, ref regex);
+            ComponentCopier.CopyWalkdown(sourceRoot, ref tree, ref regex);
 
             // Assert: ツリー構造が正しく構築される
             Assert.AreEqual(2, tree.children.Count);  // Armature, Mesh
@@ -267,7 +268,7 @@ namespace CopyComponentsByRegex.Tests
             var regex = new Regex("Collider");
 
             // Act
-            CopyComponentsByRegex.CopyWalkdown(sourceRoot, ref tree, ref regex);
+            ComponentCopier.CopyWalkdown(sourceRoot, ref tree, ref regex);
 
             // Assert: 両方の子が収集される
             Assert.AreEqual(2, tree.children.Count);
@@ -289,10 +290,10 @@ namespace CopyComponentsByRegex.Tests
             // ソースからTreeItemを構築
             var tree = new TreeItem(sourceRoot);
             var regex = new Regex("BoxCollider");
-            CopyComponentsByRegex.CopyWalkdown(sourceRoot, ref tree, ref regex);
+            ComponentCopier.CopyWalkdown(sourceRoot, ref tree, ref regex);
 
             // Act: デスティネーションにマージ（DryRunモードでテスト）
-            CopyComponentsByRegex.MergeWalkdown(destinationRoot, ref tree, 0, true);
+            ComponentCopier.MergeWalkdown(destinationRoot, ref tree, 0, true);
 
             // Assert: DryRunなので実際にはコンポーネントは追加されない
             // このテストは統合的な動作確認として、エラーなく実行されることを確認
@@ -314,7 +315,7 @@ namespace CopyComponentsByRegex.Tests
             var regex = new Regex("Box");
 
             // Act
-            CopyComponentsByRegex.CopyWalkdown(sourceRoot, ref tree, ref regex);
+            ComponentCopier.CopyWalkdown(sourceRoot, ref tree, ref regex);
 
             // Assert: BoxCollider のみマッチ
             Assert.AreEqual(1, tree.components.Count);
@@ -334,7 +335,7 @@ namespace CopyComponentsByRegex.Tests
             var regex = new Regex("boxcollider");  // 小文字
 
             // Act
-            CopyComponentsByRegex.CopyWalkdown(sourceRoot, ref tree, ref regex);
+            ComponentCopier.CopyWalkdown(sourceRoot, ref tree, ref regex);
 
             // Assert: 大文字小文字が異なるためマッチしない
             Assert.AreEqual(0, tree.components.Count);
@@ -353,7 +354,7 @@ namespace CopyComponentsByRegex.Tests
             var regex = new Regex("boxcollider", RegexOptions.IgnoreCase);
 
             // Act
-            CopyComponentsByRegex.CopyWalkdown(sourceRoot, ref tree, ref regex);
+            ComponentCopier.CopyWalkdown(sourceRoot, ref tree, ref regex);
 
             // Assert: 大文字小文字を無視するためマッチする
             Assert.AreEqual(1, tree.components.Count);
@@ -407,9 +408,9 @@ namespace CopyComponentsByRegex.Tests
             var dstSpine = CreateTestGameObject("Spine", destinationRoot.transform);
 
             // マッピングを設定
-            CopyComponentsByRegex.srcBoneMapping = CreateMockSrcMapping();
-            CopyComponentsByRegex.dstBoneMapping = CreateMockDstMapping();
-            CopyComponentsByRegex.replacementRules = new List<ReplacementRule>
+            ComponentCopier.srcBoneMapping = CreateMockSrcMapping();
+            ComponentCopier.dstBoneMapping = CreateMockDstMapping();
+            ComponentCopier.replacementRules = new List<ReplacementRule>
             {
                 new ReplacementRule(HumanoidBoneGroup.All)
             };
@@ -433,14 +434,14 @@ namespace CopyComponentsByRegex.Tests
             Assert.AreEqual(1, tree.children[0].components.Count, "Head child should have 1 component");
             
             // デバッグ: マッピングが設定されているか確認
-            Assert.IsNotNull(CopyComponentsByRegex.srcBoneMapping);
-            Assert.IsNotNull(CopyComponentsByRegex.dstBoneMapping);
+            Assert.IsNotNull(ComponentCopier.srcBoneMapping);
+            Assert.IsNotNull(ComponentCopier.dstBoneMapping);
             
             // デバッグ: NamesMatchが期待通り動作するか確認
             bool match = NameMatcher.NamesMatch("J_Bip_C_Head", "Head", 
-                CopyComponentsByRegex.replacementRules, 
-                CopyComponentsByRegex.srcBoneMapping, 
-                CopyComponentsByRegex.dstBoneMapping);
+                ComponentCopier.replacementRules, 
+                ComponentCopier.srcBoneMapping, 
+                ComponentCopier.dstBoneMapping);
             Assert.IsTrue(match, "NamesMatch should work for J_Bip_C_Head -> Head");
             
             // デバッグ: TryFindMatchingNameが期待通り動作するか確認
@@ -448,14 +449,14 @@ namespace CopyComponentsByRegex.Tests
             childDic["Head"] = dstHead.transform;
             childDic["Spine"] = dstSpine.transform;
             bool found = NameMatcher.TryFindMatchingName(childDic, "J_Bip_C_Head", 
-                CopyComponentsByRegex.replacementRules, out string matchedName,
-                CopyComponentsByRegex.srcBoneMapping, 
-                CopyComponentsByRegex.dstBoneMapping);
+                ComponentCopier.replacementRules, out string matchedName,
+                ComponentCopier.srcBoneMapping, 
+                ComponentCopier.dstBoneMapping);
             Assert.IsTrue(found, "TryFindMatchingName should find Head");
             Assert.AreEqual("Head", matchedName);
 
             // Act - DryRunモードでテスト（テスト環境ではPasteComponentAsNewが正常に動作しない）
-            CopyComponentsByRegex.MergeWalkdown(destinationRoot, ref tree, 0, true);
+            ComponentCopier.MergeWalkdown(destinationRoot, ref tree, 0, true);
 
             // Assert - DryRunなのでコンポーネントは実際には追加されない
             // NamesMatchとTryFindMatchingNameが正しく動作することは上記のアサーションで確認済み
@@ -481,33 +482,33 @@ namespace CopyComponentsByRegex.Tests
             CreateTestGameObject("LeftUpperArm", destinationRoot.transform);
 
             // マッピングを設定（Headグループのみ）
-            CopyComponentsByRegex.srcBoneMapping = CreateMockSrcMapping();
-            CopyComponentsByRegex.dstBoneMapping = CreateMockDstMapping();
-            CopyComponentsByRegex.replacementRules = new List<ReplacementRule>
+            ComponentCopier.srcBoneMapping = CreateMockSrcMapping();
+            ComponentCopier.dstBoneMapping = CreateMockDstMapping();
+            ComponentCopier.replacementRules = new List<ReplacementRule>
             {
                 new ReplacementRule(HumanoidBoneGroup.Head)  // 頭グループのみ
             };
 
             var tree = new TreeItem(sourceRoot);
             var regex = new Regex("Collider");
-            CopyComponentsByRegex.CopyWalkdown(sourceRoot, ref tree, ref regex);
+            ComponentCopier.CopyWalkdown(sourceRoot, ref tree, ref regex);
 
             // Act - DryRunモードでテスト
-            CopyComponentsByRegex.MergeWalkdown(destinationRoot, ref tree, 0, true);
+            ComponentCopier.MergeWalkdown(destinationRoot, ref tree, 0, true);
 
             // Assert
             // NamesMatchのHeadグループフィルタリングが正しく動作することを確認
             // Headはマッチ、LeftUpperArmはマッチしないことを事前確認
             bool headMatch = NameMatcher.NamesMatch("J_Bip_C_Head", "Head", 
-                CopyComponentsByRegex.replacementRules, 
-                CopyComponentsByRegex.srcBoneMapping, 
-                CopyComponentsByRegex.dstBoneMapping);
+                ComponentCopier.replacementRules, 
+                ComponentCopier.srcBoneMapping, 
+                ComponentCopier.dstBoneMapping);
             Assert.IsTrue(headMatch, "Head should match with Head group");
             
             bool armMatch = NameMatcher.NamesMatch("J_Bip_L_UpperArm", "LeftUpperArm", 
-                CopyComponentsByRegex.replacementRules, 
-                CopyComponentsByRegex.srcBoneMapping, 
-                CopyComponentsByRegex.dstBoneMapping);
+                ComponentCopier.replacementRules, 
+                ComponentCopier.srcBoneMapping, 
+                ComponentCopier.dstBoneMapping);
             Assert.IsFalse(armMatch, "LeftUpperArm should NOT match with Head-only group");
         }
 
@@ -525,25 +526,25 @@ namespace CopyComponentsByRegex.Tests
             CreateTestGameObject("Head", destinationRoot.transform);
 
             // マッピングなし
-            CopyComponentsByRegex.srcBoneMapping = null;
-            CopyComponentsByRegex.dstBoneMapping = null;
-            CopyComponentsByRegex.replacementRules = new List<ReplacementRule>
+            ComponentCopier.srcBoneMapping = null;
+            ComponentCopier.dstBoneMapping = null;
+            ComponentCopier.replacementRules = new List<ReplacementRule>
             {
                 new ReplacementRule(HumanoidBoneGroup.All)
             };
 
             var tree = new TreeItem(sourceRoot);
             var regex = new Regex("Collider");
-            CopyComponentsByRegex.CopyWalkdown(sourceRoot, ref tree, ref regex);
+            ComponentCopier.CopyWalkdown(sourceRoot, ref tree, ref regex);
 
             // Act - DryRunモードでテスト
-            CopyComponentsByRegex.MergeWalkdown(destinationRoot, ref tree, 0, true);
+            ComponentCopier.MergeWalkdown(destinationRoot, ref tree, 0, true);
 
             // Assert - NamesMatchがマッピングなしで失敗することを確認
             bool match = NameMatcher.NamesMatch("J_Bip_C_Head", "Head", 
-                CopyComponentsByRegex.replacementRules, 
-                CopyComponentsByRegex.srcBoneMapping, 
-                CopyComponentsByRegex.dstBoneMapping);
+                ComponentCopier.replacementRules, 
+                ComponentCopier.srcBoneMapping, 
+                ComponentCopier.dstBoneMapping);
             Assert.IsFalse(match, "NamesMatch should fail without mapping");
         }
 
@@ -565,9 +566,9 @@ namespace CopyComponentsByRegex.Tests
             CreateTestGameObject("Test", destinationRoot.transform);  // 正規表現でマッチ
 
             // マッピングとルールを設定
-            CopyComponentsByRegex.srcBoneMapping = CreateMockSrcMapping();
-            CopyComponentsByRegex.dstBoneMapping = CreateMockDstMapping();
-            CopyComponentsByRegex.replacementRules = new List<ReplacementRule>
+            ComponentCopier.srcBoneMapping = CreateMockSrcMapping();
+            ComponentCopier.dstBoneMapping = CreateMockDstMapping();
+            ComponentCopier.replacementRules = new List<ReplacementRule>
             {
                 new ReplacementRule("Custom_(.+)", "$1"),  // 正規表現ルール
                 new ReplacementRule(HumanoidBoneGroup.Head)  // HumanoidBoneルール
@@ -575,22 +576,22 @@ namespace CopyComponentsByRegex.Tests
 
             var tree = new TreeItem(sourceRoot);
             var regex = new Regex("Collider");
-            CopyComponentsByRegex.CopyWalkdown(sourceRoot, ref tree, ref regex);
+            ComponentCopier.CopyWalkdown(sourceRoot, ref tree, ref regex);
 
             // Act - DryRunモードでテスト
-            CopyComponentsByRegex.MergeWalkdown(destinationRoot, ref tree, 0, true);
+            ComponentCopier.MergeWalkdown(destinationRoot, ref tree, 0, true);
 
             // Assert - 両方のルールが正しくマッチできることを確認
             bool headMatch = NameMatcher.NamesMatch("J_Bip_C_Head", "Head", 
-                CopyComponentsByRegex.replacementRules, 
-                CopyComponentsByRegex.srcBoneMapping, 
-                CopyComponentsByRegex.dstBoneMapping);
+                ComponentCopier.replacementRules, 
+                ComponentCopier.srcBoneMapping, 
+                ComponentCopier.dstBoneMapping);
             Assert.IsTrue(headMatch, "HumanoidBone rule should match J_Bip_C_Head -> Head");
             
             bool regexMatch = NameMatcher.NamesMatch("Custom_Test", "Test", 
-                CopyComponentsByRegex.replacementRules, 
-                CopyComponentsByRegex.srcBoneMapping, 
-                CopyComponentsByRegex.dstBoneMapping);
+                ComponentCopier.replacementRules, 
+                ComponentCopier.srcBoneMapping, 
+                ComponentCopier.dstBoneMapping);
             Assert.IsTrue(regexMatch, "Regex rule should match Custom_Test -> Test");
         }
         #endregion
