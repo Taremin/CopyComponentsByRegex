@@ -190,7 +190,7 @@ namespace CopyComponentsByRegex
                     continue;
                 }
 
-                if (CheckHumanoidBoneMatch(srcName, dstName, rule.boneGroup, srcBoneMapping, dstBoneMapping))
+                if (CheckHumanoidBoneMatch(srcName, dstName, rule, srcBoneMapping, dstBoneMapping))
                 {
                     return true;
                 }
@@ -265,7 +265,7 @@ namespace CopyComponentsByRegex
         private static bool CheckHumanoidBoneMatch(
             string srcName, 
             string dstName, 
-            HumanoidBoneGroup group,
+            ReplacementRule rule,
             Dictionary<string, HumanBodyBones> srcBoneMapping,
             Dictionary<string, HumanBodyBones> dstBoneMapping)
         {
@@ -281,11 +281,23 @@ namespace CopyComponentsByRegex
                 return false;
             }
 
-            // 対象グループに含まれるボーンかチェック
-            var bonesInGroup = GetBonesInGroup(group);
-            if (!bonesInGroup.Contains(srcBone))
+            // 選択モードに応じてフィルタリング
+            if (rule.boneSelectionMode == HumanoidBoneSelectionMode.Group)
             {
-                return false;
+                // グループ選択: 対象グループに含まれるボーンかチェック
+                var bonesInGroup = GetBonesInGroup(rule.boneGroup);
+                if (!bonesInGroup.Contains(srcBone))
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                // 個別選択: 指定されたボーンと一致するかチェック
+                if (srcBone != rule.singleBone)
+                {
+                    return false;
+                }
             }
 
             // dstNameがデスティネーションのマッピングで同じHumanBodyBonesにマッピングされているかチェック

@@ -397,9 +397,11 @@ namespace CopyComponentsByRegex.Tests
                 { "J_Bip_C_Spine", HumanBodyBones.Spine },
                 { "J_Bip_C_Chest", HumanBodyBones.Chest },
                 { "J_Bip_C_Neck", HumanBodyBones.Neck },
+                { "J_Bip_L_Shoulder", HumanBodyBones.LeftShoulder },
                 { "J_Bip_L_UpperArm", HumanBodyBones.LeftUpperArm },
                 { "J_Bip_L_LowerArm", HumanBodyBones.LeftLowerArm },
                 { "J_Bip_L_Hand", HumanBodyBones.LeftHand },
+                { "J_Bip_R_Shoulder", HumanBodyBones.RightShoulder },
                 { "J_Bip_R_UpperArm", HumanBodyBones.RightUpperArm },
                 { "J_Bip_R_LowerArm", HumanBodyBones.RightLowerArm },
                 { "J_Bip_R_Hand", HumanBodyBones.RightHand },
@@ -422,9 +424,11 @@ namespace CopyComponentsByRegex.Tests
                 { "Spine", HumanBodyBones.Spine },
                 { "Chest", HumanBodyBones.Chest },
                 { "Neck", HumanBodyBones.Neck },
+                { "LeftShoulder", HumanBodyBones.LeftShoulder },
                 { "LeftUpperArm", HumanBodyBones.LeftUpperArm },
                 { "LeftLowerArm", HumanBodyBones.LeftLowerArm },
                 { "LeftHand", HumanBodyBones.LeftHand },
+                { "RightShoulder", HumanBodyBones.RightShoulder },
                 { "RightUpperArm", HumanBodyBones.RightUpperArm },
                 { "RightLowerArm", HumanBodyBones.RightLowerArm },
                 { "RightHand", HumanBodyBones.RightHand },
@@ -600,6 +604,85 @@ namespace CopyComponentsByRegex.Tests
 
             // Assert
             Assert.IsFalse(result);
+        }
+
+        /// <summary>
+        /// 個別ボーン選択で指定したボーンのみがマッチする
+        /// </summary>
+        [Test]
+        public void NamesMatch_WithIndividualBoneSelection_MatchesOnlySpecifiedBone()
+        {
+            // Arrange
+            var srcMapping = CreateMockSrcMapping();
+            var dstMapping = CreateMockDstMapping();
+            var rules = new List<ReplacementRule>
+            {
+                new ReplacementRule(HumanBodyBones.Head)  // 個別ボーン選択
+            };
+
+            // Act & Assert - Headのみマッチ
+            Assert.IsTrue(NameMatcher.NamesMatch("J_Bip_C_Head", "Head", rules, srcMapping, dstMapping));
+            Assert.IsFalse(NameMatcher.NamesMatch("J_Bip_C_Neck", "Neck", rules, srcMapping, dstMapping));
+            Assert.IsFalse(NameMatcher.NamesMatch("J_Bip_C_Spine", "Spine", rules, srcMapping, dstMapping));
+        }
+
+        /// <summary>
+        /// 個別ボーン選択でNeckを指定した場合
+        /// </summary>
+        [Test]
+        public void NamesMatch_WithIndividualNeckSelection_MatchesOnlyNeck()
+        {
+            // Arrange
+            var srcMapping = CreateMockSrcMapping();
+            var dstMapping = CreateMockDstMapping();
+            var rules = new List<ReplacementRule>
+            {
+                new ReplacementRule(HumanBodyBones.Neck)
+            };
+
+            // Act & Assert
+            Assert.IsFalse(NameMatcher.NamesMatch("J_Bip_C_Head", "Head", rules, srcMapping, dstMapping));
+            Assert.IsTrue(NameMatcher.NamesMatch("J_Bip_C_Neck", "Neck", rules, srcMapping, dstMapping));
+        }
+
+        /// <summary>
+        /// 個別ボーン選択でLeftShoulderを指定した場合
+        /// </summary>
+        [Test]
+        public void NamesMatch_WithIndividualLeftShoulderSelection_MatchesOnlyLeftShoulder()
+        {
+            // Arrange
+            var srcMapping = CreateMockSrcMapping();
+            var dstMapping = CreateMockDstMapping();
+            var rules = new List<ReplacementRule>
+            {
+                new ReplacementRule(HumanBodyBones.LeftShoulder)
+            };
+
+            // Act & Assert
+            Assert.IsFalse(NameMatcher.NamesMatch("J_Bip_C_Head", "Head", rules, srcMapping, dstMapping));
+            Assert.IsTrue(NameMatcher.NamesMatch("J_Bip_L_Shoulder", "LeftShoulder", rules, srcMapping, dstMapping));
+        }
+
+        /// <summary>
+        /// 複数の個別ボーン選択ルールで複数ボーンがマッチ
+        /// </summary>
+        [Test]
+        public void NamesMatch_WithMultipleIndividualBoneRules_MatchesAllSpecifiedBones()
+        {
+            // Arrange
+            var srcMapping = CreateMockSrcMapping();
+            var dstMapping = CreateMockDstMapping();
+            var rules = new List<ReplacementRule>
+            {
+                new ReplacementRule(HumanBodyBones.Head),
+                new ReplacementRule(HumanBodyBones.Neck)
+            };
+
+            // Act & Assert - HeadとNeckのみマッチ
+            Assert.IsTrue(NameMatcher.NamesMatch("J_Bip_C_Head", "Head", rules, srcMapping, dstMapping));
+            Assert.IsTrue(NameMatcher.NamesMatch("J_Bip_C_Neck", "Neck", rules, srcMapping, dstMapping));
+            Assert.IsFalse(NameMatcher.NamesMatch("J_Bip_C_Spine", "Spine", rules, srcMapping, dstMapping));
         }
 
         #endregion

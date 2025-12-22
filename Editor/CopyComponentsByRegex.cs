@@ -811,21 +811,30 @@ namespace CopyComponentsByRegex {
 						rule.dstPattern = GUILayout.TextField(rule.dstPattern, GUILayout.Width(100));
 					} else {
 						// HumanoidBoneの場合
-						GUILayout.Label("ボーン:", GUILayout.Width(45));
-						
-						// ボーングループをドロップダウンで選択（日本語表示）
-						var displayNames = System.Enum.GetValues(typeof(HumanoidBoneGroup));
-						string[] options = new string[displayNames.Length];
-						int currentIndex = 0;
-						for (int j = 0; j < displayNames.Length; j++) {
-							var group = (HumanoidBoneGroup)displayNames.GetValue(j);
-							options[j] = NameMatcher.BoneGroupDisplayNames[group];
-							if (group == rule.boneGroup) {
-								currentIndex = j;
+						// 選択モード（グループ/個別）のドロップダウン
+						string[] modeOptions = new string[] { "グループ", "個別" };
+						int currentModeIndex = rule.boneSelectionMode == HumanoidBoneSelectionMode.Group ? 0 : 1;
+						int newModeIndex = EditorGUILayout.Popup(currentModeIndex, modeOptions, GUILayout.Width(65));
+						rule.boneSelectionMode = newModeIndex == 0 ? HumanoidBoneSelectionMode.Group : HumanoidBoneSelectionMode.Individual;
+
+						if (rule.boneSelectionMode == HumanoidBoneSelectionMode.Group) {
+							// グループ選択の場合：ボーングループをドロップダウンで選択
+							var displayNames = System.Enum.GetValues(typeof(HumanoidBoneGroup));
+							string[] options = new string[displayNames.Length];
+							int currentIndex = 0;
+							for (int j = 0; j < displayNames.Length; j++) {
+								var group = (HumanoidBoneGroup)displayNames.GetValue(j);
+								options[j] = NameMatcher.BoneGroupDisplayNames[group];
+								if (group == rule.boneGroup) {
+									currentIndex = j;
+								}
 							}
+							int newIndex = EditorGUILayout.Popup(currentIndex, options, GUILayout.Width(80));
+							rule.boneGroup = (HumanoidBoneGroup)displayNames.GetValue(newIndex);
+						} else {
+							// 個別選択の場合：個別ボーンをドロップダウンで選択
+							rule.singleBone = (HumanBodyBones)EditorGUILayout.EnumPopup(rule.singleBone, GUILayout.Width(120));
 						}
-						int newIndex = EditorGUILayout.Popup(currentIndex, options, GUILayout.Width(80));
-						rule.boneGroup = (HumanoidBoneGroup)displayNames.GetValue(newIndex);
 					}
 
 					// 削除ボタン

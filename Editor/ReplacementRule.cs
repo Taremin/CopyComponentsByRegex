@@ -1,4 +1,5 @@
 using System;
+using UnityEngine;
 
 namespace CopyComponentsByRegex
 {
@@ -45,6 +46,17 @@ namespace CopyComponentsByRegex
     }
 
     /// <summary>
+    /// HumanoidBoneの選択モード
+    /// </summary>
+    public enum HumanoidBoneSelectionMode
+    {
+        /// <summary>ボーングループで選択</summary>
+        Group,
+        /// <summary>個別ボーンで選択</summary>
+        Individual
+    }
+
+    /// <summary>
     /// 置換ルールを表すデータ構造
     /// 正規表現の置換またはHumanoidBoneのマッピングをサポートする
     /// </summary>
@@ -62,6 +74,12 @@ namespace CopyComponentsByRegex
 
         /// <summary>HumanoidBoneグループ（HumanoidBoneタイプの場合に使用）</summary>
         public HumanoidBoneGroup boneGroup = HumanoidBoneGroup.All;
+
+        /// <summary>HumanoidBoneの選択モード（グループまたは個別）</summary>
+        public HumanoidBoneSelectionMode boneSelectionMode = HumanoidBoneSelectionMode.Group;
+
+        /// <summary>個別のHumanoidBone（Individual選択時に使用）</summary>
+        public HumanBodyBones singleBone = HumanBodyBones.Hips;
 
         /// <summary>ルールが有効かどうか</summary>
         public bool enabled = true;
@@ -83,12 +101,24 @@ namespace CopyComponentsByRegex
         }
 
         /// <summary>
-        /// HumanoidBoneルール用コンストラクタ
+        /// HumanoidBoneルール用コンストラクタ（グループ選択）
         /// </summary>
         public ReplacementRule(HumanoidBoneGroup boneGroup)
         {
             this.type = RuleType.HumanoidBone;
+            this.boneSelectionMode = HumanoidBoneSelectionMode.Group;
             this.boneGroup = boneGroup;
+            this.enabled = true;
+        }
+
+        /// <summary>
+        /// HumanoidBoneルール用コンストラクタ（個別ボーン選択）
+        /// </summary>
+        public ReplacementRule(HumanBodyBones singleBone)
+        {
+            this.type = RuleType.HumanoidBone;
+            this.boneSelectionMode = HumanoidBoneSelectionMode.Individual;
+            this.singleBone = singleBone;
             this.enabled = true;
         }
     }
