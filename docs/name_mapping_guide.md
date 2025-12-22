@@ -105,6 +105,53 @@ graph TB
 > [!TIP]
 > 正規表現ルールだけでは対応できない場合は、HumanoidBoneルールと組み合わせて使用してください。
 
+### 例3: HumanoidBoneルールと正規表現ルールの混在
+
+非Humanoidボーン（Skirt、Hair、アクセサリなど）を含む階層でのコピー例です。
+
+```mermaid
+graph TB
+    subgraph "コピー元"
+        direction TB
+        S1["Root"]
+        S2["J_Bip_C_Hips<br>📦 PhysicsBone"]
+        S3["Skirt<br>📦 DynamicBone"]
+        S4["Hair_Front<br>📦 SpringBone"]
+        S1 --> S2 --> S3
+        S1 --> S4
+    end
+    
+    subgraph "コピー先"
+        direction TB
+        D1["Armature"]
+        D2["mixamo:Hips"]
+        D3["Skirt"]
+        D4["HairFront"]
+        D1 --> D2 --> D3
+        D1 --> D4
+    end
+```
+
+**ルール設定：**
+1. HumanoidBoneルール（すべて）
+2. 正規表現ルール: `Hair_(.+)` → `Hair$1`
+
+**マッチング結果：**
+
+| コピー元 | コピー先 | マッチ方法 | 結果 |
+|---------|---------|-----------|------|
+| J_Bip_C_Hips | mixamo:Hips | HumanoidBone (両方Hips) | ✅ マッチ |
+| Skirt | Skirt | **完全一致** | ✅ マッチ |
+| Hair_Front | HairFront | 正規表現 (Hair_Front → HairFront) | ✅ マッチ |
+
+> [!IMPORTANT]
+> **処理順序**
+> 1. **完全一致チェック**（最優先）：名前が同じなら即座にマッチ
+> 2. **正規表現ルール**：名前を変換して一致するかチェック
+> 3. **HumanoidBoneルール**：同じHumanBodyBonesにマップされているかチェック
+> 
+> つまり、Skirtのような非Humanoidボーンでも名前が同じなら自動的にマッチします。
+
 ---
 
 ## ルールタイプ
