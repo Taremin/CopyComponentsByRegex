@@ -689,6 +689,9 @@ namespace CopyComponentsByRegex {
 				// 置換リストセクション
 				DrawReplacementRulesSection();
 
+				// HumanoidBoneルールの警告表示（Pasteボタンの前に常時表示）
+				DrawHumanoidBoneWarning();
+
 				if (GUILayout.Button ("Paste")) {
 					if (copyTree == null || root == null) {
 						return;
@@ -698,27 +701,6 @@ namespace CopyComponentsByRegex {
 					var dstAnimator = activeObject.GetComponent<Animator>();
 					dstBoneMapping = NameMatcher.GetBoneMapping(dstAnimator);
 
-					// HumanoidBoneルールが含まれているのにHumanoidでない場合は警告
-					if (NameMatcher.HasHumanoidBoneRule(replacementRules)) {
-						bool srcIsHumanoid = srcBoneMapping != null && srcBoneMapping.Count > 0;
-						bool dstIsHumanoid = dstBoneMapping != null && dstBoneMapping.Count > 0;
-						
-						if (!srcIsHumanoid || !dstIsHumanoid) {
-							string warningMsg = "HumanoidBoneルールが設定されていますが、";
-							if (!srcIsHumanoid && !dstIsHumanoid) {
-								warningMsg += "コピー元とコピー先の両方がHumanoidではありません。";
-							} else if (!srcIsHumanoid) {
-								warningMsg += "コピー元がHumanoidではありません。";
-							} else {
-								warningMsg += "コピー先がHumanoidではありません。";
-							}
-							warningMsg += "\nHumanoidBoneルールは無視されます。続行しますか？";
-							
-							if (!EditorUtility.DisplayDialog("警告", warningMsg, "続行", "キャンセル")) {
-								return;
-							}
-						}
-					}
 
 					// Clear logs
 					modificationLogs.Clear();
@@ -853,6 +835,47 @@ namespace CopyComponentsByRegex {
 				EditorGUILayout.HelpBox("置換ルールが設定されていません。\nルールがない場合は名前の完全一致のみでマッチします。", MessageType.Info);
 			}
 		}
+	}
+
+	/// <summary>
+	/// HumanoidBoneルールの警告を表示
+	/// </summary>
+	private void DrawHumanoidBoneWarning()
+	{
+		// HumanoidBoneルールが有効でない場合は何も表示しない
+		if (!NameMatcher.HasHumanoidBoneRule(replacementRules)) {
+			return;
+		}
+
+		// コピー元のHumanoid状態（Copyボタン押下時に取得済み）
+		bool srcIsHumanoid = srcBoneMapping != null && srcBoneMapping.Count > 0;
+		
+		// コピー先のHumanoid状態（アクティブなオブジェクトから毎回取得）
+		bool dstIsHumanoid = false;
+		if (activeObject != null) {
+			var dstAnimator = activeObject.GetComponent<Animator>();
+			dstIsHumanoid = dstAnimator != null && dstAnimator.isHuman;
+		}
+
+		// 警告が必要ない場合は何も表示しない
+		if (srcIsHumanoid && dstIsHumanoid) {
+			return;
+		}
+
+		// 警告メッセージを構築
+		string warningMsg = "";
+		if (root == null) {
+			// まだCopyが実行されていない場合
+			warningMsg = "HumanoidBoneルールが設定されています。\nCopyを実行してからPasteしてください。";
+		} else if (!srcIsHumanoid && !dstIsHumanoid) {
+			warningMsg = "コピー元とコピー先の両方がHumanoidではありません。\nHumanoidBoneルールは機能しません。";
+		} else if (!srcIsHumanoid) {
+			warningMsg = "コピー元がHumanoidではありません。\nHumanoidBoneルールは機能しません。";
+		} else {
+			warningMsg = "コピー先がHumanoidではありません。\nHumanoidBoneルールは機能しません。";
+		}
+
+		EditorGUILayout.HelpBox(warningMsg, MessageType.Warning);
 	}
 	}
 }
