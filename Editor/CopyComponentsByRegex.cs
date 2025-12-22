@@ -75,6 +75,10 @@ namespace CopyComponentsByRegex {
 		// 置換リスト機能
 		internal static List<ReplacementRule> replacementRules = new List<ReplacementRule>();
 		static bool showReplacementRules = false;
+		
+		// Humanoidボーンマッピング（コピー元・コピー先）
+		internal static Dictionary<string, HumanBodyBones> srcBoneMapping = null;
+		internal static Dictionary<string, HumanBodyBones> dstBoneMapping = null;
 
 		Vector2 scrollPosition;
 
@@ -190,13 +194,13 @@ namespace CopyComponentsByRegex {
 				Transform dstChild = null;
 				// 置換ルールを考慮した子検索
 				foreach (Transform child in GetChildren (src.gameObject)) {
-					if (NameMatcher.NamesMatch(current.name, child.name, replacementRules)) {
+					if (NameMatcher.NamesMatch(current.name, child.name, replacementRules, srcBoneMapping, dstBoneMapping)) {
 						srcChild = child;
 						break;
 					}
 				}
 				foreach (Transform child in GetChildren (dst.gameObject)) {
-					if (NameMatcher.NamesMatch(current.name, child.name, replacementRules)) {
+					if (NameMatcher.NamesMatch(current.name, child.name, replacementRules, srcBoneMapping, dstBoneMapping)) {
 						dstChild = child;
 						break;
 					}
@@ -277,7 +281,7 @@ namespace CopyComponentsByRegex {
 
 		internal static void MergeWalkdown (GameObject go, ref TreeItem tree, int depth = 0, bool dryRun = false) {
 			// 置換ルールを考慮した名前マッチング
-			if (depth > 0 && !NameMatcher.NamesMatch(tree.name, go.name, replacementRules)) {
+			if (depth > 0 && !NameMatcher.NamesMatch(tree.name, go.name, replacementRules, srcBoneMapping, dstBoneMapping)) {
 				return;
 			}
 
@@ -388,7 +392,7 @@ namespace CopyComponentsByRegex {
 				var next = treeChild;
 
 				// 置換ルールを考慮した子検索
-				if (!NameMatcher.TryFindMatchingName(childDic, treeChild.name, replacementRules, out string matchedName)) {
+				if (!NameMatcher.TryFindMatchingName(childDic, treeChild.name, replacementRules, out string matchedName, srcBoneMapping, dstBoneMapping)) {
 					continue;
 				}
 
@@ -402,7 +406,7 @@ namespace CopyComponentsByRegex {
 
 		static void RemoveWalkdown (GameObject go, ref TreeItem tree, int depth = 0, bool dryRun = false) {
 			// 置換ルールを考慮した名前マッチング
-			if (depth > 0 && !NameMatcher.NamesMatch(tree.name, go.name, replacementRules)) {
+			if (depth > 0 && !NameMatcher.NamesMatch(tree.name, go.name, replacementRules, srcBoneMapping, dstBoneMapping)) {
 				return;
 			}
 
@@ -439,7 +443,7 @@ namespace CopyComponentsByRegex {
 				foreach (TreeItem treeChild in tree.children) {
 					// 置換ルールを考慮した名前マッチング
 					if (
-						NameMatcher.NamesMatch(treeChild.name, child.gameObject.name, replacementRules) &&
+						NameMatcher.NamesMatch(treeChild.name, child.gameObject.name, replacementRules, srcBoneMapping, dstBoneMapping) &&
 						child.gameObject.GetType ().ToString () == treeChild.type
 					) {
 						next = treeChild;
@@ -639,6 +643,10 @@ namespace CopyComponentsByRegex {
 					transforms = new List<Transform> ();
 					components = new List<Component> ();
 
+					// コピー元のHumanoidマッピングを取得
+					var srcAnimator = activeObject.GetComponent<Animator>();
+					srcBoneMapping = NameMatcher.GetBoneMapping(srcAnimator);
+
 					var regex = new Regex (pattern);
 					CopyWalkdown (activeObject, ref copyTree, ref regex);
 				}
@@ -684,6 +692,32 @@ namespace CopyComponentsByRegex {
 				if (GUILayout.Button ("Paste")) {
 					if (copyTree == null || root == null) {
 						return;
+					}
+
+					// コピー先のHumanoidマッピングを取得
+					var dstAnimator = activeObject.GetComponent<Animator>();
+					dstBoneMapping = NameMatcher.GetBoneMapping(dstAnimator);
+
+					// HumanoidBoneルールが含まれているのにHumanoidでない場合は警告
+					if (NameMatcher.HasHumanoidBoneRule(replacementRules)) {
+						bool srcIsHumanoid = srcBoneMapping != null && srcBoneMapping.Count > 0;
+						bool dstIsHumanoid = dstBoneMapping != null && dstBoneMapping.Count > 0;
+						
+						if (!srcIsHumanoid || !dstIsHumanoid) {
+							string warningMsg = "HumanoidBoneルールが設定されていますが、";
+							if (!srcIsHumanoid && !dstIsHumanoid) {
+								warningMsg += "コピー元とコピー先の両方がHumanoidではありません。";
+							} else if (!srcIsHumanoid) {
+								warningMsg += "コピー元がHumanoidではありません。";
+							} else {
+								warningMsg += "コピー先がHumanoidではありません。";
+							}
+							warningMsg += "\nHumanoidBoneルールは無視されます。続行しますか？";
+							
+							if (!EditorUtility.DisplayDialog("警告", warningMsg, "続行", "キャンセル")) {
+								return;
+							}
+						}
 					}
 
 					// Clear logs

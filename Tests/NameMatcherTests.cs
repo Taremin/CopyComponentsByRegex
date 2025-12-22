@@ -108,7 +108,7 @@ namespace CopyComponentsByRegex.Tests
 
         #endregion
 
-        #region NamesMatch テスト
+        #region NamesMatch テスト（正規表現のみ）
 
         /// <summary>
         /// 同じ名前はルールなしでマッチ
@@ -165,69 +165,6 @@ namespace CopyComponentsByRegex.Tests
             Assert.IsTrue(result);
         }
 
-        /// <summary>
-        /// HumanoidBoneルールでエイリアスがマッチ
-        /// </summary>
-        [Test]
-        public void NamesMatch_WithHumanoidBoneRule_MatchesAliases()
-        {
-            // Arrange
-            string srcName = "J_Bip_C_Head";
-            string dstName = "Head";
-            var rules = new List<ReplacementRule>
-            {
-                new ReplacementRule(HumanoidBoneGroup.Head)
-            };
-
-            // Act
-            bool result = NameMatcher.NamesMatch(srcName, dstName, rules);
-
-            // Assert
-            Assert.IsTrue(result);
-        }
-
-        /// <summary>
-        /// HumanoidBoneルール（すべて）でマッチ
-        /// </summary>
-        [Test]
-        public void NamesMatch_WithAllBonesRule_MatchesAnyBone()
-        {
-            // Arrange
-            string srcName = "J_Bip_L_UpperArm";
-            string dstName = "LeftUpperArm";
-            var rules = new List<ReplacementRule>
-            {
-                new ReplacementRule(HumanoidBoneGroup.All)
-            };
-
-            // Act
-            bool result = NameMatcher.NamesMatch(srcName, dstName, rules);
-
-            // Assert
-            Assert.IsTrue(result);
-        }
-
-        /// <summary>
-        /// 異なるボーングループのエイリアスはマッチしない
-        /// </summary>
-        [Test]
-        public void NamesMatch_WithWrongBoneGroup_ReturnsFalse()
-        {
-            // Arrange
-            string srcName = "J_Bip_C_Head";  // 頭
-            string dstName = "LeftUpperArm";   // 左腕
-            var rules = new List<ReplacementRule>
-            {
-                new ReplacementRule(HumanoidBoneGroup.Head)  // 頭のみ対象
-            };
-
-            // Act
-            bool result = NameMatcher.NamesMatch(srcName, dstName, rules);
-
-            // Assert
-            Assert.IsFalse(result);
-        }
-
         #endregion
 
         #region TryFindMatchingName テスト
@@ -254,10 +191,10 @@ namespace CopyComponentsByRegex.Tests
         }
 
         /// <summary>
-        /// ルールでマッチする名前が見つかる
+        /// 正規表現ルールでマッチする名前が見つかる
         /// </summary>
         [Test]
-        public void TryFindMatchingName_WithRule_FindsMatch()
+        public void TryFindMatchingName_WithRegexRule_FindsMatch()
         {
             // Arrange
             var childDic = new Dictionary<string, Transform>
@@ -267,7 +204,7 @@ namespace CopyComponentsByRegex.Tests
             };
             var rules = new List<ReplacementRule>
             {
-                new ReplacementRule(HumanoidBoneGroup.Head)
+                new ReplacementRule("J_Bip_C_(.+)", "$1")
             };
 
             // Act
@@ -289,13 +226,9 @@ namespace CopyComponentsByRegex.Tests
             {
                 { "Spine", CreateDummyTransform("Spine") }
             };
-            var rules = new List<ReplacementRule>
-            {
-                new ReplacementRule(HumanoidBoneGroup.Head)  // 頭のみ
-            };
 
             // Act
-            bool result = NameMatcher.TryFindMatchingName(childDic, "J_Bip_C_Head", rules, out string matchedName);
+            bool result = NameMatcher.TryFindMatchingName(childDic, "Head", null, out string matchedName);
 
             // Assert
             Assert.IsFalse(result);
@@ -304,55 +237,148 @@ namespace CopyComponentsByRegex.Tests
 
         #endregion
 
-        #region GetHumanoidBoneAliases テスト
+        #region GetBonesInGroup テスト
 
         /// <summary>
-        /// エイリアス定義が存在する
+        /// Head グループのボーンが取得できる
         /// </summary>
         [Test]
-        public void GetHumanoidBoneAliases_ReturnsKnownBones()
+        public void GetBonesInGroup_Head_ReturnsHeadBones()
         {
             // Act
-            var aliases = NameMatcher.GetHumanoidBoneAliases();
+            var bones = NameMatcher.GetBonesInGroup(HumanoidBoneGroup.Head);
 
             // Assert
-            Assert.IsTrue(aliases.ContainsKey("Head"));
-            Assert.IsTrue(aliases.ContainsKey("Hips"));
-            Assert.IsTrue(aliases.ContainsKey("LeftUpperArm"));
-            Assert.IsTrue(aliases["Head"].Contains("J_Bip_C_Head"));
+            Assert.Contains(HumanBodyBones.Head, bones);
+            Assert.Contains(HumanBodyBones.LeftEye, bones);
+            Assert.Contains(HumanBodyBones.RightEye, bones);
         }
 
         /// <summary>
-        /// グループに属するボーンが取得できる
+        /// LeftArm グループのボーンが取得できる
         /// </summary>
         [Test]
-        public void GetBonesInGroup_ReturnsCorrectBones()
+        public void GetBonesInGroup_LeftArm_ReturnsArmBones()
         {
             // Act
-            var headBones = NameMatcher.GetBonesInGroup(HumanoidBoneGroup.Head);
-            var leftArmBones = NameMatcher.GetBonesInGroup(HumanoidBoneGroup.LeftArm);
+            var bones = NameMatcher.GetBonesInGroup(HumanoidBoneGroup.LeftArm);
 
             // Assert
-            Assert.IsTrue(headBones.Contains("Head"));
-            Assert.IsTrue(leftArmBones.Contains("LeftUpperArm"));
-            Assert.IsTrue(leftArmBones.Contains("LeftHand"));
+            Assert.Contains(HumanBodyBones.LeftUpperArm, bones);
+            Assert.Contains(HumanBodyBones.LeftHand, bones);
         }
 
         /// <summary>
-        /// 「すべて」グループはすべてのボーンを返す
+        /// All グループはすべてのボーンを返す
         /// </summary>
         [Test]
         public void GetBonesInGroup_All_ReturnsAllBones()
         {
             // Act
-            var allBones = NameMatcher.GetBonesInGroup(HumanoidBoneGroup.All);
+            var bones = NameMatcher.GetBonesInGroup(HumanoidBoneGroup.All);
 
             // Assert
-            Assert.IsTrue(allBones.Contains("Head"));
-            Assert.IsTrue(allBones.Contains("Hips"));
-            Assert.IsTrue(allBones.Contains("LeftUpperArm"));
-            Assert.IsTrue(allBones.Contains("RightFoot"));
-            Assert.IsTrue(allBones.Count > 40);  // 多くのボーンがある
+            Assert.Contains(HumanBodyBones.Head, bones);
+            Assert.Contains(HumanBodyBones.Hips, bones);
+            Assert.Contains(HumanBodyBones.LeftUpperArm, bones);
+            Assert.Contains(HumanBodyBones.RightFoot, bones);
+            Assert.Greater(bones.Length, 40);  // 多くのボーンがある
+        }
+
+        #endregion
+
+        #region HasHumanoidBoneRule テスト
+
+        /// <summary>
+        /// HumanoidBoneルールが含まれている場合true
+        /// </summary>
+        [Test]
+        public void HasHumanoidBoneRule_WithHumanoidRule_ReturnsTrue()
+        {
+            // Arrange
+            var rules = new List<ReplacementRule>
+            {
+                new ReplacementRule("test", ""),
+                new ReplacementRule(HumanoidBoneGroup.Head)
+            };
+
+            // Act
+            bool result = NameMatcher.HasHumanoidBoneRule(rules);
+
+            // Assert
+            Assert.IsTrue(result);
+        }
+
+        /// <summary>
+        /// HumanoidBoneルールが無効の場合false
+        /// </summary>
+        [Test]
+        public void HasHumanoidBoneRule_WithDisabledHumanoidRule_ReturnsFalse()
+        {
+            // Arrange
+            var rules = new List<ReplacementRule>
+            {
+                new ReplacementRule(HumanoidBoneGroup.Head) { enabled = false }
+            };
+
+            // Act
+            bool result = NameMatcher.HasHumanoidBoneRule(rules);
+
+            // Assert
+            Assert.IsFalse(result);
+        }
+
+        /// <summary>
+        /// 正規表現ルールのみの場合false
+        /// </summary>
+        [Test]
+        public void HasHumanoidBoneRule_WithOnlyRegexRules_ReturnsFalse()
+        {
+            // Arrange
+            var rules = new List<ReplacementRule>
+            {
+                new ReplacementRule("test", "replacement")
+            };
+
+            // Act
+            bool result = NameMatcher.HasHumanoidBoneRule(rules);
+
+            // Assert
+            Assert.IsFalse(result);
+        }
+
+        #endregion
+
+        #region IsHumanoid テスト
+
+        /// <summary>
+        /// nullの場合はfalse
+        /// </summary>
+        [Test]
+        public void IsHumanoid_WithNull_ReturnsFalse()
+        {
+            // Act
+            bool result = NameMatcher.IsHumanoid(null);
+
+            // Assert
+            Assert.IsFalse(result);
+        }
+
+        /// <summary>
+        /// Animatorがない場合はfalse
+        /// </summary>
+        [Test]
+        public void IsHumanoid_WithoutAnimator_ReturnsFalse()
+        {
+            // Arrange
+            var go = new GameObject("TestObject");
+            go.hideFlags = HideFlags.HideAndDontSave;
+
+            // Act
+            bool result = NameMatcher.IsHumanoid(go);
+
+            // Assert
+            Assert.IsFalse(result);
         }
 
         #endregion

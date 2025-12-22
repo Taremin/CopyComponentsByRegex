@@ -131,7 +131,21 @@ flowchart LR
 
 ### HumanoidBoneルール
 
-Unity Humanoidボーン名のエイリアスを使用してマッチングします。
+Unity Humanoidリグのマッピング情報を使用してマッチングします。
+
+```mermaid
+flowchart TD
+    A["コピー元<br>J_Bip_C_Head"] --> B["Animatorから<br>HumanBodyBones.Headを取得"]
+    C["コピー先<br>Head"] --> D["Animatorから<br>HumanBodyBones.Headを取得"]
+    B --> E{"同じHumanBodyBones?"}
+    D --> E
+    E -->|"Yes"| F["✅ マッチ"]
+    E -->|"No"| G["❌ 不一致"]
+```
+
+> [!IMPORTANT]
+> コピー元・コピー先の両方が**Humanoidリグ**として設定されている必要があります。
+> 非Humanoidの場合、警告ダイアログが表示されます。
 
 ```mermaid
 flowchart TD
