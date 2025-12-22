@@ -103,7 +103,7 @@ Unity.exe -runTests -batchmode -projectPath <プロジェクトパス> -testPlat
   - 正規表現マッチング、階層構造の再帰処理
 - **NameMatcherTests**: 名前マッチング機能のテスト
   - 正規表現ルールによる名前変換
-  - HumanoidBoneエイリアスによるマッチング
+  - HumanoidBone動的マッピングによるマッチング
   - 置換ルールを使用した子オブジェクト検索
 
 

@@ -224,8 +224,8 @@ graph TD
 ```mermaid
 flowchart TD
     START["名前マッチング開始"] --> A{"完全一致?"}
-    A -->|"Yes"| SUCCESS["✅ マッチ成功"]
-    A -->|"No"| B["置換ルールを順番に評価"]
+    A -->|"そのまま"| SUCCESS["✅ マッチ成功"]
+    A -->|"不一致"| B["置換ルールを順番に評価"]
     
     B --> C{"正規表現ルール?"}
     C -->|"Yes"| D["名前を変換"]
@@ -234,7 +234,7 @@ flowchart TD
     E -->|"No"| F["次のルールへ"]
     
     C -->|"No"| G{"HumanoidBone<br>ルール?"}
-    G -->|"Yes"| H["エイリアスで<br>照合"]
+    G -->|"Yes"| H["ボーンマッピングで<br>同じHumanBodyBonesか確認"]
     H -->|"マッチ"| SUCCESS
     H -->|"不一致"| F
     
@@ -252,16 +252,21 @@ sequenceDiagram
     participant Copy as CopyWalkdown
     participant Merge as MergeWalkdown
     participant NM as NameMatcher
+    participant Animator as Animator
 
     User->>UI: 置換ルールを設定
     User->>UI: Copyボタン
+    UI->>Animator: GetBoneMapping(コピー元)
+    Animator-->>UI: srcBoneMapping
     UI->>Copy: ツリー構造を収集
     
     User->>UI: Pasteボタン
+    UI->>Animator: GetBoneMapping(コピー先)
+    Animator-->>UI: dstBoneMapping
     UI->>Merge: マージ開始
     
     loop 各子オブジェクト
-        Merge->>NM: TryFindMatchingName()
+        Merge->>NM: TryFindMatchingName(srcMapping, dstMapping)
         NM-->>Merge: マッチした名前 or null
         alt マッチした場合
             Merge->>Merge: コンポーネントをコピー
