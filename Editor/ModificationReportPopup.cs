@@ -15,8 +15,10 @@ namespace CopyComponentsByRegex
         private bool isDryRun;
         private Vector2 scrollPosition;
         private bool showAllComponents = false;
+        private CopySettings settings;
+        private bool exportIncludeProperties = true;
 
-        public static void Show(TreeItem copyTree, GameObject activeObject, List<ModificationEntry> modificationLogs, List<ModificationEntry> modificationObjectLogs, bool isObjectCopy, bool isDryRun)
+        public static void Show(TreeItem copyTree, GameObject activeObject, List<ModificationEntry> modificationLogs, List<ModificationEntry> modificationObjectLogs, bool isObjectCopy, bool isDryRun, CopySettings settings = null)
         {
             var window = CreateInstance<ModificationReportPopup>();
             string title = isDryRun ? "Dry Run Report" : "Modification Report";
@@ -27,6 +29,7 @@ namespace CopyComponentsByRegex
             window.modificationObjectLogs = modificationObjectLogs;
             window.isObjectCopy = isObjectCopy;
             window.isDryRun = isDryRun;
+            window.settings = settings;
             
             window.ShowUtility(); 
         }
@@ -43,7 +46,27 @@ namespace CopyComponentsByRegex
             using (new GUILayout.VerticalScope())
             {
 
-                EditorGUILayout.LabelField(isDryRun ? "Dry Run Report" : "Modification Report", EditorStyles.boldLabel);
+                using (new GUILayout.HorizontalScope())
+                {
+                    EditorGUILayout.LabelField(isDryRun ? "Dry Run Report" : "Modification Report", EditorStyles.boldLabel);
+                    GUILayout.FlexibleSpace();
+                    
+                    // Export Report ボタン
+                    exportIncludeProperties = GUILayout.Toggle(exportIncludeProperties, "Props", GUILayout.Width(50));
+                    if (GUILayout.Button("Export", GUILayout.Width(60)))
+                    {
+                        var sourceRoot = copyTree != null && copyTree.gameObject != null ? copyTree.gameObject : null;
+                        BugReportExporter.ExportAndCopy(
+                            sourceRoot,
+                            copyTree,
+                            activeObject,
+                            settings,
+                            modificationLogs,
+                            modificationObjectLogs,
+                            exportIncludeProperties
+                        );
+                    }
+                }
                 showAllComponents = EditorGUILayout.ToggleLeft("全てのコンポーネントを表示", showAllComponents);
                 
                 scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);

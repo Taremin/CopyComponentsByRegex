@@ -192,5 +192,93 @@ namespace CopyComponentsByRegex.Tests
                 Object.DestroyImmediate(go);
             }
         }
+        /// <summary>
+        /// BugReportData のデフォルト値テスト
+        /// </summary>
+        [Test]
+        public void BugReportData_DefaultValues_AreCorrect()
+        {
+            // Act
+            var data = new BugReportData();
+
+            // Assert
+            Assert.AreEqual("1.0.0", data.version);
+            Assert.IsNull(data.timestamp);
+            Assert.IsTrue(data.includeProperties);
+            Assert.IsNull(data.source);
+            Assert.IsNull(data.destination);
+            Assert.IsNull(data.settings);
+            Assert.IsNotNull(data.modificationLogs);
+            Assert.AreEqual(0, data.modificationLogs.Count);
+        }
+
+        /// <summary>
+        /// SimpleJsonSerializer の往復シリアライズテスト
+        /// </summary>
+        [Test]
+        public void BugReportData_Serialization_RoundTrip()
+        {
+            // Arrange
+            var data = new BugReportData
+            {
+                version = "1.0.0",
+                timestamp = "2025-12-22T19:00:00+09:00",
+                includeProperties = true,
+                source = new ObjectData
+                {
+                    name = "TestSource",
+                    isHumanoid = false
+                },
+                destination = new ObjectData
+                {
+                    name = "TestDest",
+                    isHumanoid = true
+                },
+                settings = new SettingsData
+                {
+                    pattern = "Test.*",
+                    isObjectCopy = true
+                }
+            };
+
+            data.modificationLogs.Add(new ModificationLogData
+            {
+                targetPath = "TestSource/Child",
+                componentType = "TestComponent",
+                operation = "Add",
+                message = "テスト"
+            });
+
+            // Act
+            string json = SimpleJsonSerializer.Serialize(data, true);
+
+            // Assert: JSONが生成されること
+            Assert.IsNotNull(json);
+            Assert.IsTrue(json.Contains("\"version\": \"1.0.0\""));
+            Assert.IsTrue(json.Contains("\"TestSource\""));
+            Assert.IsTrue(json.Contains("\"TestDest\""));
+            Assert.IsTrue(json.Contains("\"Test.*\""));
+            Assert.IsTrue(json.Contains("\"Add\""));
+        }
+
+        /// <summary>
+        /// PropertyData のプロパティテスト
+        /// </summary>
+        [Test]
+        public void PropertyData_SetValues_StoresCorrectly()
+        {
+            // Act
+            var propData = new PropertyData
+            {
+                name = "stiffnessForce",
+                type = "Float",
+                value = "1.5"
+            };
+
+            // Assert
+            Assert.AreEqual("stiffnessForce", propData.name);
+            Assert.AreEqual("Float", propData.type);
+            Assert.AreEqual("1.5", propData.value);
+        }
     }
 }

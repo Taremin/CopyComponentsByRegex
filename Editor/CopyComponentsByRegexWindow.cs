@@ -19,6 +19,7 @@ namespace CopyComponentsByRegex
         // 設定
         private CopySettings settings = new CopySettings();
         private bool showReplacementRules = false;
+        private bool exportIncludeProperties = true;
 
         private string GetSelfPath([CallerFilePath] string filepath = "")
         {
@@ -155,6 +156,54 @@ namespace CopyComponentsByRegex
                 if (GUILayout.Button("Dry Run"))
                 {
                     ComponentCopier.DryRun(ComponentCopier.activeObject, settings);
+                }
+
+                // Export Debug Infoセクション
+                EditorGUILayout.Space();
+                using (new GUILayout.VerticalScope(GUI.skin.box))
+                {
+                    EditorGUILayout.LabelField("デバッグ情報エクスポート", EditorStyles.boldLabel);
+                    
+                    // src（コピー元）とdst（コピー先）が両方揃っているかチェック
+                    bool hasSrc = ComponentCopier.root != null && ComponentCopier.copyTree != null;
+                    bool hasDst = ComponentCopier.activeObject != null;
+                    bool canExport = hasSrc && hasDst;
+
+                    if (!canExport)
+                    {
+                        string message = "";
+                        if (!hasSrc && !hasDst)
+                        {
+                            message = "CopyとPaste先の選択が必要です";
+                        }
+                        else if (!hasSrc)
+                        {
+                            message = "先にCopy操作を実行してください";
+                        }
+                        else
+                        {
+                            message = "Paste先オブジェクトを選択してください";
+                        }
+                        EditorGUILayout.HelpBox(message, MessageType.Info);
+                    }
+
+                    exportIncludeProperties = EditorGUILayout.ToggleLeft("プロパティ値を含める", exportIncludeProperties);
+                    
+                    using (new EditorGUI.DisabledScope(!canExport))
+                    {
+                        if (GUILayout.Button("Export Debug Info"))
+                        {
+                            BugReportExporter.ExportAndCopy(
+                                ComponentCopier.root.gameObject,
+                                ComponentCopier.copyTree,
+                                ComponentCopier.activeObject,
+                                settings,
+                                ComponentCopier.modificationLogs,
+                                ComponentCopier.modificationObjectLogs,
+                                exportIncludeProperties
+                            );
+                        }
+                    }
                 }
 
                 // 注意書き
