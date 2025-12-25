@@ -47,6 +47,16 @@ namespace CopyComponentsByRegex
         public bool showReportAfterPaste = false;
 
         /// <summary>
+        /// 置換リストの折りたたみ状態
+        /// </summary>
+        public bool showReplacementRules = false;
+
+        /// <summary>
+        /// 注意書きの折りたたみ状態
+        /// </summary>
+        public bool showNotes = false;
+
+        /// <summary>
         /// 名前置換ルールのリスト
         /// </summary>
         public List<ReplacementRule> replacementRules = new List<ReplacementRule>();
@@ -63,6 +73,8 @@ namespace CopyComponentsByRegex
             isClothNNS = ParseBool(EditorUserSettings.GetConfigValue(ConfigPrefix + "isClothNNS"), isClothNNS);
             copyTransform = ParseBool(EditorUserSettings.GetConfigValue(ConfigPrefix + "copyTransform"), copyTransform);
             showReportAfterPaste = ParseBool(EditorUserSettings.GetConfigValue(ConfigPrefix + "showReportAfterPaste"), showReportAfterPaste);
+            showReplacementRules = ParseBool(EditorUserSettings.GetConfigValue(ConfigPrefix + "showReplacementRules"), showReplacementRules);
+            showNotes = ParseBool(EditorUserSettings.GetConfigValue(ConfigPrefix + "showNotes"), showNotes);
         }
 
         /// <summary>
@@ -77,6 +89,8 @@ namespace CopyComponentsByRegex
             EditorUserSettings.SetConfigValue(ConfigPrefix + "isClothNNS", isClothNNS.ToString());
             EditorUserSettings.SetConfigValue(ConfigPrefix + "copyTransform", copyTransform.ToString());
             EditorUserSettings.SetConfigValue(ConfigPrefix + "showReportAfterPaste", showReportAfterPaste.ToString());
+            EditorUserSettings.SetConfigValue(ConfigPrefix + "showReplacementRules", showReplacementRules.ToString());
+            EditorUserSettings.SetConfigValue(ConfigPrefix + "showNotes", showNotes.ToString());
         }
 
         /// <summary>

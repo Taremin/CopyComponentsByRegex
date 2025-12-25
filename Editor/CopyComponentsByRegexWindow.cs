@@ -18,7 +18,6 @@ namespace CopyComponentsByRegex
 
         // 設定
         private CopySettings settings = new CopySettings();
-        private bool showReplacementRules = false;
         private bool exportIncludeProperties = true;
 
         private string GetSelfPath([CallerFilePath] string filepath = "")
@@ -205,17 +204,26 @@ namespace CopyComponentsByRegex
                     }
                 }
 
-                // 注意書き
-                GUIStyle labelStyle = new GUIStyle(GUI.skin.label);
-                labelStyle.wordWrap = true;
-                using (new GUILayout.VerticalScope(GUI.skin.box))
+                // 注意書き（折りたたみ可能）
+                bool prevShowNotes = settings.showNotes;
+                settings.showNotes = EditorGUILayout.Foldout(settings.showNotes, "注意書き", true);
+                if (prevShowNotes != settings.showNotes)
                 {
-                    GUILayout.Label(
-                        "「一番近い頂点からコピー」を利用する場合はあらかじめClothのコピー先にClothを追加するか、" +
-                        "最初はチェックなしでコピーした後、別途Clothのみを対象にして「一番近い頂点からコピー」を行ってください。" +
-                        "\n(UnityのClothコンポーネントの初期化時に頂点座標がずれてるのが原因のため現在は修正困難です)",
-                        labelStyle
-                    );
+                    settings.SaveSetting("showNotes", settings.showNotes.ToString());
+                }
+                if (settings.showNotes)
+                {
+                    GUIStyle labelStyle = new GUIStyle(GUI.skin.label);
+                    labelStyle.wordWrap = true;
+                    using (new GUILayout.VerticalScope(GUI.skin.box))
+                    {
+                        GUILayout.Label(
+                            "「一番近い頂点からコピー」を利用する場合はあらかじめClothのコピー先にClothを追加するか、" +
+                            "最初はチェックなしでコピーした後、別途Clothのみを対象にして「一番近い頂点からコピー」を行ってください。" +
+                            "\n(UnityのClothコンポーネントの初期化時に頂点座標がずれてるのが原因のため現在は修正困難です)",
+                            labelStyle
+                        );
+                    }
                 }
             }
             finally
@@ -229,9 +237,14 @@ namespace CopyComponentsByRegex
         /// </summary>
         private void DrawReplacementRulesSection()
         {
-            showReplacementRules = EditorGUILayout.Foldout(showReplacementRules, "置換リスト", true);
+            bool prevShowReplacementRules = settings.showReplacementRules;
+            settings.showReplacementRules = EditorGUILayout.Foldout(settings.showReplacementRules, "置換リスト", true);
+            if (prevShowReplacementRules != settings.showReplacementRules)
+            {
+                settings.SaveSetting("showReplacementRules", settings.showReplacementRules.ToString());
+            }
 
-            if (!showReplacementRules)
+            if (!settings.showReplacementRules)
             {
                 return;
             }
