@@ -29,11 +29,16 @@ namespace CopyComponentsByRegex
         private void OnEnable()
         {
             // バージョン情報の読み込み
-            var __file__ = GetSelfPath();
-            string relativePath = new System.Uri(Application.dataPath).MakeRelativeUri(new System.Uri(__file__)).ToString();
-            string currentDirectory = Path.GetDirectoryName(relativePath);
-            var packageInfo = JsonUtility.FromJson<PackageInfo>(LoadSmallFile(currentDirectory + "/../package.json"));
-            version = packageInfo.version;
+            var selfPath = GetSelfPath();
+            string scriptDir = Path.GetDirectoryName(selfPath);
+            string packageJsonPath = Path.Combine(scriptDir, "../package.json");
+            
+            if (File.Exists(packageJsonPath))
+            {
+                string json = File.ReadAllText(packageJsonPath);
+                var packageInfo = JsonUtility.FromJson<PackageInfo>(json);
+                version = packageInfo.version;
+            }
 
             // 設定の読み込み
             settings.Load();
@@ -59,13 +64,7 @@ namespace CopyComponentsByRegex
             EditorWindow.GetWindow(typeof(CopyComponentsByRegexWindow));
         }
 
-        private string LoadSmallFile(string filePath)
-        {
-            StreamReader reader = new StreamReader(filePath);
-            string datastr = reader.ReadToEnd();
-            reader.Close();
-            return datastr;
-        }
+
 
         private void OnGUI()
         {
