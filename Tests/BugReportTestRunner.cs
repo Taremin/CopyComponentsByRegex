@@ -40,6 +40,7 @@ namespace CopyComponentsByRegex.Tests
 
         /// <summary>
         /// テストケースファイルのパスを取得
+        /// テストケースが存在しない場合は、スキップ用のnullを返す
         /// </summary>
         public static IEnumerable<string> GetTestCases()
         {
@@ -47,10 +48,20 @@ namespace CopyComponentsByRegex.Tests
             
             if (!Directory.Exists(testCasesDir))
             {
+                // テストケースディレクトリが存在しない場合、スキップ用のnullを返す
+                yield return null;
                 yield break;
             }
 
-            foreach (var jsonFile in Directory.GetFiles(testCasesDir, "*.json"))
+            var jsonFiles = Directory.GetFiles(testCasesDir, "*.json");
+            if (jsonFiles.Length == 0)
+            {
+                // テストケースファイルが存在しない場合、スキップ用のnullを返す
+                yield return null;
+                yield break;
+            }
+
+            foreach (var jsonFile in jsonFiles)
             {
                 yield return jsonFile;
             }
@@ -72,6 +83,13 @@ namespace CopyComponentsByRegex.Tests
         [TestCaseSource(nameof(GetTestCases))]
         public void RunBugReportTest(string jsonPath)
         {
+            // テストケースが存在しない場合はスキップ
+            if (string.IsNullOrEmpty(jsonPath))
+            {
+                Assert.Ignore("テストケースファイルが存在しません。Tests/TestCases/ ディレクトリにJSONファイルを配置してください。");
+                return;
+            }
+
             // JSONファイルを読み込む
             var data = LoadFromFile(jsonPath);
             Assert.IsNotNull(data, $"Failed to load JSON from: {jsonPath}");
