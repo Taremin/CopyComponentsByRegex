@@ -35,8 +35,6 @@ namespace CopyComponentsByRegex.Tests
     [TestFixture]
     public class BugReportTestRunner
     {
-        private static readonly string TestCasesPath = "Assets/plugins/CopyComponentsByRegex/Tests/TestCases";
-
         // 型が見つからなかったコンポーネントを記録
         private List<string> missingComponentTypes = new List<string>();
 
@@ -45,7 +43,7 @@ namespace CopyComponentsByRegex.Tests
         /// </summary>
         public static IEnumerable<string> GetTestCases()
         {
-            var testCasesDir = Path.Combine(Application.dataPath, "plugins/CopyComponentsByRegex/Tests/TestCases");
+            var testCasesDir = PathUtility.GetTestCasesDirectoryPath();
             
             if (!Directory.Exists(testCasesDir))
             {

@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.IO;
-using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEngine;
@@ -20,24 +19,10 @@ namespace CopyComponentsByRegex
         private CopySettings settings = new CopySettings();
         private bool exportIncludeProperties = true;
 
-        private string GetSelfPath([CallerFilePath] string filepath = "")
-        {
-            return filepath;
-        }
-
         private void OnEnable()
         {
             // バージョン情報の読み込み
-            var selfPath = GetSelfPath();
-            string scriptDir = Path.GetDirectoryName(selfPath);
-            string packageJsonPath = Path.Combine(scriptDir, "../package.json");
-            
-            if (File.Exists(packageJsonPath))
-            {
-                string json = File.ReadAllText(packageJsonPath);
-                var packageInfo = JsonUtility.FromJson<PackageInfo>(json);
-                version = packageInfo.version;
-            }
+            version = PathUtility.GetPackageVersion();
 
             // 設定の読み込み
             settings.Load();

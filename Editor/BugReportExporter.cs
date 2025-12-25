@@ -382,8 +382,9 @@ namespace CopyComponentsByRegex
         {
             try
             {
-                // このスクリプトのパスからpackage.jsonを探す
-                string[] guids = AssetDatabase.FindAssets("package t:TextAsset", new[] { "Assets/plugins/CopyComponentsByRegex" });
+                // PathUtilityを使用してパッケージのアセットパスを取得
+                string packageAssetPath = PathUtility.GetPackageAssetPath();
+                string[] guids = AssetDatabase.FindAssets("package t:TextAsset", new[] { packageAssetPath });
                 foreach (string guid in guids)
                 {
                     string path = AssetDatabase.GUIDToAssetPath(guid);
