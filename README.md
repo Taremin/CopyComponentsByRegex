@@ -113,6 +113,9 @@ Unity.exe -runTests -batchmode -projectPath <プロジェクトパス> -testPlat
   - 正規表現ルールによる名前変換
   - HumanoidBone動的マッピングによるマッチング
   - 置換ルールを使用した子オブジェクト検索
+- **PathUtilityTests**: パスユーティリティ機能のテスト
+  - 相対パス・絶対パスの取得
+  - パッケージパスの解決
 
 
 
