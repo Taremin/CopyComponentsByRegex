@@ -2,6 +2,11 @@ name: Build Release
 
 on: 
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'リリース対象のタグ (例: v0.1.0)'
+        required: true
+        type: string
   push:
     tags:
       - "v[0-9]+\\.[0-9]+\\.[0-9]+"
@@ -17,13 +22,20 @@ jobs:
     
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: version
         id: version
         run: |
           REPOSITORY=$(echo ${{ github.event.repository.name }})
           echo repository=$REPOSITORY >> $GITHUB_OUTPUT
-          VERSION=$(basename ${{ github.ref }})
+          # 手動実行時はinputs.tagを使用、タグプッシュ時はgithub.refを使用
+          if [ -n "${{ inputs.tag }}" ]; then
+            VERSION="${{ inputs.tag }}"
+          else
+            VERSION=$(basename ${{ github.ref }})
+          fi
           echo version=$VERSION >> $GITHUB_OUTPUT
           ARCHIVE_BASENAME=$(echo $REPOSITORY-$VERSION)
           echo basename=$ARCHIVE_BASENAME >> $GITHUB_OUTPUT
