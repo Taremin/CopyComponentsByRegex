@@ -44,6 +44,17 @@ jobs:
             ~/.nuget/packages
           key: ${{ runner.os }}-${{ hashFiles('**/global.json', '**/*.csproj') }}
 
+      - name: Checkout Website Template
+        uses: actions/checkout@v4
+        with:
+          repository: vrchat-community/template-package-listing
+          path: template-package-listing
+          sparse-checkout: Website
+          clean: false
+
+      - name: Copy Website Template
+        run: cp -r template-package-listing/Website ${{ env.listPublishDirectory }}
+
       - name: Build Package Version Listing
         run: ${{ env.pathToCi }}/build.cmd BuildMultiPackageListing --root ${{ env.pathToCi }} --list-publish-directory $GITHUB_WORKSPACE/${{ env.listPublishDirectory }}
         env:
