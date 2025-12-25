@@ -4,6 +4,14 @@
 
 これは正規表現でマッチする、構造が同じ場所にあるコンポーネントを一括でコピーするUnityエディタ拡張です。
 
+## インストール(VCC)
+
+VRChat Creator Companion (VCC) を使用する場合、以下の手順でインストールできます：
+
+1. [Listingページ](https://taremin.github.io/CopyComponentsByRegex/) にアクセス
+2. 「Add to VCC」ボタンをクリックしてリポジトリを追加
+3. VCCでプロジェクトを開き、「Manage Project」から `CopyComponentsByRegex` を追加
+
 ## インストール(UPM)
 
 1. Unityのメニューバーから `Window` -> `Package Manager` を開く
