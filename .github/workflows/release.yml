@@ -25,6 +25,7 @@ jobs:
         with:
           ref: ${{ inputs.tag || github.ref }}
           fetch-depth: 0
+          fetch-tags: true
 
       - name: version
         id: version
@@ -44,6 +45,43 @@ jobs:
           echo zip=$ZIP_FILENAME >> $GITHUB_OUTPUT
           PACKAGE_FILENAME=$(echo $ARCHIVE_BASENAME.unitypackage)
           echo unitypackage=$PACKAGE_FILENAME >> $GITHUB_OUTPUT
+
+      - name: Determine Previous Release Tag
+        id: release_info
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if [[ "$VERSION" == *"-"* ]]; then
+            # プレリリース: 直前のタグを使用
+            PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          else
+            # 正式リリース: 現在のタグを除外した最新の正式バージョンを取得
+            PREVIOUS_TAG=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -v '-' | grep -v "^${VERSION}$" | head -1)
+          fi
+          echo "previous_tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+          echo "前のタグ: $PREVIOUS_TAG"
+
+      - name: Generate Changelog
+        id: changelog
+        run: |
+          PREVIOUS_TAG="${{ steps.release_info.outputs.previous_tag }}"
+          VERSION="${{ steps.version.outputs.version }}"
+          
+          if [ -n "$PREVIOUS_TAG" ]; then
+            echo "## 変更内容 (${PREVIOUS_TAG}...${VERSION})" > changelog.md
+            echo "" >> changelog.md
+            git log --pretty=format:"- %s (%h)" ${PREVIOUS_TAG}..HEAD >> changelog.md
+          else
+            echo "## 変更内容" > changelog.md
+            echo "" >> changelog.md
+            git log --pretty=format:"- %s (%h)" >> changelog.md
+          fi
+          
+          # ランダムなデリミタを生成してEOF衝突を回避
+          DELIMITER="CHANGELOG_$(date +%s%N)"
+          echo "changelog<<${DELIMITER}" >> $GITHUB_OUTPUT
+          cat changelog.md >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "${DELIMITER}" >> $GITHUB_OUTPUT
         
       - name: Create Zip
         uses: thedoctor0/zip-release@09336613be18a8208dfa66bd57efafd9e2685657
@@ -77,8 +115,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag || github.ref_name }}
+          name: CopyComponentsByRegex ${{ steps.version.outputs.version }}
+          body: ${{ steps.changelog.outputs.changelog }}
           draft: true
-          generate_release_notes: true
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}
           files: |
             ${{ steps.version.outputs.zip }}
             ${{ steps.version.outputs.unitypackage }}
