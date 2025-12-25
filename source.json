@@ -1,0 +1,18 @@
+{
+    "name": "Taremin VPM Packages",
+    "id": "taremin.vpm",
+    "url": "https://taremin.github.io/CopyComponentsByRegex/index.json",
+    "author": {
+        "name": "Taremin",
+        "url": "https://github.com/Taremin"
+    },
+    "description": "Copy components by Regex",
+    "infoLink": {
+        "url": "https://github.com/Taremin/CopyComponentsByRegex",
+        "text": "View on GitHub"
+    },
+    "githubRepos": [
+        "Taremin/CopyComponentsByRegex"
+    ],
+    "packages": []
+}
