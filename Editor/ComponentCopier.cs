@@ -292,7 +292,7 @@ namespace CopyComponentsByRegex
                             {
                                 targetPath = currentPath,
                                 operation = ModificationOperation.CreateObject,
-                                message = "新規オブジェクト"
+                                message = Localization.L("Created")
                             });
                         }
                         // Dry Runではオブジェクトを作成しないので、ここで中断
@@ -403,7 +403,7 @@ namespace CopyComponentsByRegex
                     if (targetComponent != null && (componentType.Name == "Transform" || componentType.Name == "RectTransform"))
                     {
                         op = ModificationOperation.Update;
-                        msg = "値の更新";
+                        msg = Localization.L("Updated");
                     }
 
                     RunComponentOperation(go, componentType.Name, op, msg, dryRun, () =>
@@ -424,8 +424,8 @@ namespace CopyComponentsByRegex
                 {
                     ModificationOperation op = targetComponent != null ? ModificationOperation.Update : ModificationOperation.Add;
                     string msg = targetComponent != null
-                        ? "プロパティの更新" + (isClothNNS ? " (NNS)" : "")
-                        : "新規貼り付け";
+                        ? Localization.L("Updated") + (isClothNNS ? " (NNS)" : "")
+                        : Localization.L("Added");
 
                     RunComponentOperation(go, componentType.Name, op, msg, dryRun, () =>
                     {
@@ -482,7 +482,7 @@ namespace CopyComponentsByRegex
                 // 3. Other Components
                 {
                     ModificationOperation op = ModificationOperation.Add;
-                    string msg = targetComponent != null ? "新規貼り付け" : "コンポーネントの追加";
+                    string msg = targetComponent != null ? Localization.L("Added") : Localization.L("Added");
 
                     RunComponentOperation(go, componentType.Name, op, msg, dryRun, () =>
                     {
@@ -552,7 +552,7 @@ namespace CopyComponentsByRegex
                             targetObject = go,
                             componentType = component.GetType().Name,
                             operation = ModificationOperation.Remove,
-                            message = "削除"
+                            message = Localization.L("Removed")
                         });
 
                         if (dryRun)

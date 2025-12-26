@@ -67,7 +67,7 @@ namespace CopyComponentsByRegex
                         );
                     }
                 }
-                showAllComponents = EditorGUILayout.ToggleLeft("全てのコンポーネントを表示", showAllComponents);
+                showAllComponents = EditorGUILayout.ToggleLeft(Localization.L("ShowAllComponents"), showAllComponents);
                 
                 scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
                 try
@@ -349,7 +349,7 @@ namespace CopyComponentsByRegex
                             var oldColor = GUI.color;
                             GUI.color = Color.green;
                             var newGoIcon = EditorGUIUtility.ObjectContent(null, typeof(GameObject)).image;
-                            var content = new GUIContent($"[+] {sourceChild.name} (新規オブジェクトなど)", newGoIcon);
+                            var content = new GUIContent($"[+] {sourceChild.name} ({Localization.L("NewObject")})", newGoIcon);
                             EditorGUILayout.LabelField(content, EditorStyles.label);
                             GUI.color = oldColor;
                             

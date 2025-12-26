@@ -1,0 +1,210 @@
+{
+    "ActiveObject": {
+        "label": "アクティブオブジェクト",
+        "tooltip": ""
+    },
+    "ComponentList": {
+        "label": "コンポーネント一覧",
+        "tooltip": ""
+    },
+    "Copy": {
+        "label": "コピー",
+        "tooltip": "コンポーネント名をクリップボードにコピー"
+    },
+    "RegexPattern": {
+        "label": "正規表現パターン",
+        "tooltip": "コピーするコンポーネントを絞り込む正規表現"
+    },
+    "SourceObject": {
+        "label": "コピー元オブジェクト",
+        "tooltip": ""
+    },
+    "CopyTransform": {
+        "label": "Transform値をコピー",
+        "tooltip": "Transformコンポーネントがマッチした場合、位置・回転・スケールの値をコピーします"
+    },
+    "RemoveExisting": {
+        "label": "既存コンポーネントを削除",
+        "tooltip": "コピー先に同じ種類のコンポーネントがある場合、先に削除してから貼り付けます"
+    },
+    "CreateMissing": {
+        "label": "不足オブジェクトを作成",
+        "tooltip": "コピー元にあってコピー先にないオブジェクトを自動的に作成します"
+    },
+    "MatchedOnly": {
+        "label": "マッチしたもののみ",
+        "tooltip": "マッチしたコンポーネントを持つオブジェクトのみ作成"
+    },
+    "ClothNNS": {
+        "label": "Cloth NNS（最近傍探索）",
+        "tooltip": "メッシュの頂点数が異なる場合に、一番近い頂点からConstraintsをコピーします"
+    },
+    "ShowReport": {
+        "label": "Paste後にレポート表示",
+        "tooltip": "ペースト操作後に変更内容のレポートを表示します"
+    },
+    "NameMappingRules": {
+        "label": "名前置換ルール",
+        "tooltip": "コピー元とコピー先でオブジェクト名が異なる場合にマッチングするルール"
+    },
+    "AddRegex": {
+        "label": "+ 正規表現",
+        "tooltip": "正規表現による名前変換ルールを追加"
+    },
+    "AddHumanoidBone": {
+        "label": "+ Humanoidボーン",
+        "tooltip": "Humanoidリグのマッピングを使用したマッチングルールを追加"
+    },
+    "Find": {
+        "label": "検索:",
+        "tooltip": ""
+    },
+    "Replace": {
+        "label": "置換:",
+        "tooltip": ""
+    },
+    "Group": {
+        "label": "グループ",
+        "tooltip": ""
+    },
+    "Single": {
+        "label": "個別",
+        "tooltip": ""
+    },
+    "DebugExport": {
+        "label": "デバッグエクスポート",
+        "tooltip": "バグレポート用のデバッグ情報をエクスポート"
+    },
+    "CopySourceFirst": {
+        "label": "先にCopyを実行してください",
+        "tooltip": ""
+    },
+    "SelectDestination": {
+        "label": "Paste先を選択してください",
+        "tooltip": ""
+    },
+    "IncludeProperties": {
+        "label": "プロパティを含める",
+        "tooltip": "エクスポートにプロパティ値を含める"
+    },
+    "Notes": {
+        "label": "注意事項",
+        "tooltip": ""
+    },
+    "NotesContent": {
+        "label": "「一番近い頂点からコピー」を利用する場合はあらかじめClothのコピー先にClothを追加するか、最初はチェックなしでコピーした後、別途Clothのみを対象にして「一番近い頂点からコピー」を行ってください。\n(UnityのClothコンポーネントの初期化時に頂点座標がずれてるのが原因のため現在は修正困難です)",
+        "tooltip": ""
+    },
+    "CopyAndPasteRequired": {
+        "label": "CopyとPaste先の選択が必要です",
+        "tooltip": ""
+    },
+    "ShowAllComponents": {
+        "label": "全てのコンポーネントを表示",
+        "tooltip": ""
+    },
+    "NewObject": {
+        "label": "新規オブジェクト",
+        "tooltip": ""
+    },
+    "Created": {
+        "label": "作成",
+        "tooltip": ""
+    },
+    "Updated": {
+        "label": "更新",
+        "tooltip": ""
+    },
+    "Added": {
+        "label": "追加",
+        "tooltip": ""
+    },
+    "Removed": {
+        "label": "削除",
+        "tooltip": ""
+    },
+    "NoRulesInfo": {
+        "label": "置換ルールが設定されていません。\nルールがない場合は名前の完全一致のみでマッチします。",
+        "tooltip": ""
+    },
+    "HumanoidWarning_CopyFirst": {
+        "label": "Humanoidボーンルールが設定されています。\nCopyを実行してからPasteしてください。",
+        "tooltip": ""
+    },
+    "HumanoidWarning_NeitherHumanoid": {
+        "label": "コピー元とコピー先の両方がHumanoidではありません。\nHumanoidボーンルールは機能しません。",
+        "tooltip": ""
+    },
+    "HumanoidWarning_SrcNotHumanoid": {
+        "label": "コピー元がHumanoidではありません。\nHumanoidボーンルールは機能しません。",
+        "tooltip": ""
+    },
+    "HumanoidWarning_DstNotHumanoid": {
+        "label": "コピー先がHumanoidではありません。\nHumanoidボーンルールは機能しません。",
+        "tooltip": ""
+    },
+    "BoneGroup_All": {
+        "label": "すべて",
+        "tooltip": ""
+    },
+    "BoneGroup_Head": {
+        "label": "頭",
+        "tooltip": ""
+    },
+    "BoneGroup_Neck": {
+        "label": "首",
+        "tooltip": ""
+    },
+    "BoneGroup_Chest": {
+        "label": "胸",
+        "tooltip": ""
+    },
+    "BoneGroup_Spine": {
+        "label": "脊椎",
+        "tooltip": ""
+    },
+    "BoneGroup_Hips": {
+        "label": "ヒップ",
+        "tooltip": ""
+    },
+    "BoneGroup_LeftArm": {
+        "label": "左腕",
+        "tooltip": ""
+    },
+    "BoneGroup_RightArm": {
+        "label": "右腕",
+        "tooltip": ""
+    },
+    "BoneGroup_LeftLeg": {
+        "label": "左脚",
+        "tooltip": ""
+    },
+    "BoneGroup_RightLeg": {
+        "label": "右脚",
+        "tooltip": ""
+    },
+    "BoneGroup_LeftFingers": {
+        "label": "左手指",
+        "tooltip": ""
+    },
+    "BoneGroup_RightFingers": {
+        "label": "右手指",
+        "tooltip": ""
+    },
+    "Language": {
+        "label": "言語",
+        "tooltip": ""
+    },
+    "Language_English": {
+        "label": "English",
+        "tooltip": ""
+    },
+    "Language_Japanese": {
+        "label": "日本語",
+        "tooltip": ""
+    },
+    "Language_System": {
+        "label": "システム",
+        "tooltip": "OSの言語設定に従います"
+    }
+}

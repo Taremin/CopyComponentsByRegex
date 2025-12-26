@@ -1,0 +1,210 @@
+{
+    "ActiveObject": {
+        "label": "Active Object",
+        "tooltip": ""
+    },
+    "ComponentList": {
+        "label": "Components",
+        "tooltip": ""
+    },
+    "Copy": {
+        "label": "Copy",
+        "tooltip": "Copy component name to clipboard"
+    },
+    "RegexPattern": {
+        "label": "Regex Pattern",
+        "tooltip": "Regular expression to filter components to copy"
+    },
+    "SourceObject": {
+        "label": "Source Object",
+        "tooltip": ""
+    },
+    "CopyTransform": {
+        "label": "Copy Transform Values",
+        "tooltip": "Copy position, rotation, and scale when Transform component matches"
+    },
+    "RemoveExisting": {
+        "label": "Remove Existing Components",
+        "tooltip": "Remove components of the same type from destination before pasting"
+    },
+    "CreateMissing": {
+        "label": "Create Missing Objects",
+        "tooltip": "Automatically create objects that exist in source but not in destination"
+    },
+    "MatchedOnly": {
+        "label": "Matched Only",
+        "tooltip": "Only create objects that have matched components"
+    },
+    "ClothNNS": {
+        "label": "Cloth NNS (Nearest Neighbor)",
+        "tooltip": "Copy Constraints from the nearest vertex when mesh vertex counts differ"
+    },
+    "ShowReport": {
+        "label": "Show Report After Paste",
+        "tooltip": "Display a report of changes after paste operation"
+    },
+    "NameMappingRules": {
+        "label": "Name Mapping Rules",
+        "tooltip": "Rules to match objects with different names between source and destination"
+    },
+    "AddRegex": {
+        "label": "+ Regex",
+        "tooltip": "Add a regex-based name transformation rule"
+    },
+    "AddHumanoidBone": {
+        "label": "+ Humanoid Bone",
+        "tooltip": "Add a matching rule using Humanoid rig mapping"
+    },
+    "Find": {
+        "label": "Find:",
+        "tooltip": ""
+    },
+    "Replace": {
+        "label": "Replace:",
+        "tooltip": ""
+    },
+    "Group": {
+        "label": "Group",
+        "tooltip": ""
+    },
+    "Single": {
+        "label": "Single",
+        "tooltip": ""
+    },
+    "DebugExport": {
+        "label": "Debug Export",
+        "tooltip": "Export debug information for bug reports"
+    },
+    "CopySourceFirst": {
+        "label": "Copy source first",
+        "tooltip": ""
+    },
+    "SelectDestination": {
+        "label": "Select destination",
+        "tooltip": ""
+    },
+    "IncludeProperties": {
+        "label": "Include Properties",
+        "tooltip": "Include property values in export"
+    },
+    "Notes": {
+        "label": "Notes",
+        "tooltip": ""
+    },
+    "NotesContent": {
+        "label": "When using \"Nearest Neighbor Search\", add a Cloth component to the destination beforehand, or first copy without the option checked, then copy Cloth separately with the option enabled.\n(This is due to vertex coordinate issues during Unity Cloth component initialization and is currently difficult to fix)",
+        "tooltip": ""
+    },
+    "CopyAndPasteRequired": {
+        "label": "Copy and destination selection required",
+        "tooltip": ""
+    },
+    "ShowAllComponents": {
+        "label": "Show All Components",
+        "tooltip": ""
+    },
+    "NewObject": {
+        "label": "New Object",
+        "tooltip": ""
+    },
+    "Created": {
+        "label": "Created",
+        "tooltip": ""
+    },
+    "Updated": {
+        "label": "Updated",
+        "tooltip": ""
+    },
+    "Added": {
+        "label": "Added",
+        "tooltip": ""
+    },
+    "Removed": {
+        "label": "Removed",
+        "tooltip": ""
+    },
+    "NoRulesInfo": {
+        "label": "No replacement rules configured.\nWithout rules, only exact name matches will work.",
+        "tooltip": ""
+    },
+    "HumanoidWarning_CopyFirst": {
+        "label": "Humanoid Bone rules are set.\nPlease Copy first before Paste.",
+        "tooltip": ""
+    },
+    "HumanoidWarning_NeitherHumanoid": {
+        "label": "Neither source nor destination is Humanoid.\nHumanoid Bone rules will not work.",
+        "tooltip": ""
+    },
+    "HumanoidWarning_SrcNotHumanoid": {
+        "label": "Source is not Humanoid.\nHumanoid Bone rules will not work.",
+        "tooltip": ""
+    },
+    "HumanoidWarning_DstNotHumanoid": {
+        "label": "Destination is not Humanoid.\nHumanoid Bone rules will not work.",
+        "tooltip": ""
+    },
+    "BoneGroup_All": {
+        "label": "All",
+        "tooltip": ""
+    },
+    "BoneGroup_Head": {
+        "label": "Head",
+        "tooltip": ""
+    },
+    "BoneGroup_Neck": {
+        "label": "Neck",
+        "tooltip": ""
+    },
+    "BoneGroup_Chest": {
+        "label": "Chest",
+        "tooltip": ""
+    },
+    "BoneGroup_Spine": {
+        "label": "Spine",
+        "tooltip": ""
+    },
+    "BoneGroup_Hips": {
+        "label": "Hips",
+        "tooltip": ""
+    },
+    "BoneGroup_LeftArm": {
+        "label": "Left Arm",
+        "tooltip": ""
+    },
+    "BoneGroup_RightArm": {
+        "label": "Right Arm",
+        "tooltip": ""
+    },
+    "BoneGroup_LeftLeg": {
+        "label": "Left Leg",
+        "tooltip": ""
+    },
+    "BoneGroup_RightLeg": {
+        "label": "Right Leg",
+        "tooltip": ""
+    },
+    "BoneGroup_LeftFingers": {
+        "label": "Left Fingers",
+        "tooltip": ""
+    },
+    "BoneGroup_RightFingers": {
+        "label": "Right Fingers",
+        "tooltip": ""
+    },
+    "Language": {
+        "label": "Language",
+        "tooltip": ""
+    },
+    "Language_English": {
+        "label": "English",
+        "tooltip": ""
+    },
+    "Language_Japanese": {
+        "label": "日本語",
+        "tooltip": ""
+    },
+    "Language_System": {
+        "label": "System",
+        "tooltip": "Use operating system language setting"
+    }
+}

@@ -13,23 +13,29 @@ namespace CopyComponentsByRegex
     public static class NameMatcher
     {
         /// <summary>
-        /// HumanoidBoneグループの日本語表示名
+        /// HumanoidBoneグループの表示名を取得（多言語対応）
         /// </summary>
-        public static readonly Dictionary<HumanoidBoneGroup, string> BoneGroupDisplayNames = new Dictionary<HumanoidBoneGroup, string>
+        public static Dictionary<HumanoidBoneGroup, string> BoneGroupDisplayNames
         {
-            { HumanoidBoneGroup.All, "すべて" },
-            { HumanoidBoneGroup.Head, "頭" },
-            { HumanoidBoneGroup.Neck, "首" },
-            { HumanoidBoneGroup.Chest, "胸" },
-            { HumanoidBoneGroup.Spine, "脊椎" },
-            { HumanoidBoneGroup.Hips, "ヒップ" },
-            { HumanoidBoneGroup.LeftArm, "左腕" },
-            { HumanoidBoneGroup.RightArm, "右腕" },
-            { HumanoidBoneGroup.LeftLeg, "左脚" },
-            { HumanoidBoneGroup.RightLeg, "右脚" },
-            { HumanoidBoneGroup.LeftFingers, "左手指" },
-            { HumanoidBoneGroup.RightFingers, "右手指" },
-        };
+            get
+            {
+                return new Dictionary<HumanoidBoneGroup, string>
+                {
+                    { HumanoidBoneGroup.All, Localization.L("BoneGroup_All") },
+                    { HumanoidBoneGroup.Head, Localization.L("BoneGroup_Head") },
+                    { HumanoidBoneGroup.Neck, Localization.L("BoneGroup_Neck") },
+                    { HumanoidBoneGroup.Chest, Localization.L("BoneGroup_Chest") },
+                    { HumanoidBoneGroup.Spine, Localization.L("BoneGroup_Spine") },
+                    { HumanoidBoneGroup.Hips, Localization.L("BoneGroup_Hips") },
+                    { HumanoidBoneGroup.LeftArm, Localization.L("BoneGroup_LeftArm") },
+                    { HumanoidBoneGroup.RightArm, Localization.L("BoneGroup_RightArm") },
+                    { HumanoidBoneGroup.LeftLeg, Localization.L("BoneGroup_LeftLeg") },
+                    { HumanoidBoneGroup.RightLeg, Localization.L("BoneGroup_RightLeg") },
+                    { HumanoidBoneGroup.LeftFingers, Localization.L("BoneGroup_LeftFingers") },
+                    { HumanoidBoneGroup.RightFingers, Localization.L("BoneGroup_RightFingers") },
+                };
+            }
+        }
 
         /// <summary>
         /// HumanoidBoneGroupに属するHumanBodyBonesのリスト

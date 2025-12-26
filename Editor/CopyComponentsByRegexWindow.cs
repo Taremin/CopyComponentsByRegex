@@ -65,9 +65,22 @@ namespace CopyComponentsByRegex
                 {
                     EditorGUILayout.LabelField("CopyComponentsByRegex Version: " + version);
                 }
+                // 言語選択ドロップダウン
+                using (new GUILayout.HorizontalScope())
+                {
+                    EditorGUILayout.LabelField(Localization.L("Language"), GUILayout.Width(50));
+                    string[] languageOptions = { Localization.L("Language_English"), Localization.L("Language_Japanese"), Localization.L("Language_System") };
+                    int currentLangIndex = (int)Localization.CurrentLanguageOption;
+                    int newLangIndex = EditorGUILayout.Popup(currentLangIndex, languageOptions, GUILayout.Width(100));
+                    if (newLangIndex != currentLangIndex)
+                    {
+                        Localization.CurrentLanguageOption = (LanguageOption)newLangIndex;
+                        Repaint();
+                    }
+                }
 
                 // アクティブオブジェクト表示
-                EditorGUILayout.LabelField("アクティブなオブジェクト");
+                EditorGUILayout.LabelField(Localization.L("ActiveObject"));
                 using (new GUILayout.VerticalScope(GUI.skin.box))
                 {
                     EditorGUILayout.LabelField(ComponentCopier.activeObject ? ComponentCopier.activeObject.name : "");
@@ -79,7 +92,7 @@ namespace CopyComponentsByRegex
 
                 // コンポーネント一覧（折りたたみ）
                 bool prevShowComponentList = settings.showComponentList;
-                settings.showComponentList = EditorGUILayout.Foldout(settings.showComponentList, "コンポーネント一覧", true);
+                settings.showComponentList = EditorGUILayout.Foldout(settings.showComponentList, Localization.L("ComponentList"), true);
                 if (prevShowComponentList != settings.showComponentList)
                 {
                     settings.SaveSetting("showComponentList", settings.showComponentList.ToString());
@@ -104,7 +117,7 @@ namespace CopyComponentsByRegex
                                     EditorGUILayout.LabelField(typeName);
 
                                     // クリップボードにコピーボタン
-                                    if (GUILayout.Button("コピー", GUILayout.Width(50)))
+                                    if (GUILayout.Button(Localization.L("Copy"), GUILayout.Width(50)))
                                     {
                                         GUIUtility.systemCopyBuffer = typeName;
                                     }
@@ -117,7 +130,7 @@ namespace CopyComponentsByRegex
                 }
 
                 // 正規表現パターン
-                settings.pattern = EditorGUILayout.TextField("正規表現", settings.pattern);
+                settings.pattern = EditorGUILayout.TextField(Localization.L("RegexPattern"), settings.pattern);
                 settings.SaveSetting("pattern", settings.pattern);
 
                 // Copyボタン
@@ -126,42 +139,42 @@ namespace CopyComponentsByRegex
                     ComponentCopier.Copy(ComponentCopier.activeObject, settings);
                 }
 
-                // コピー中のオブジェクト表示
-                EditorGUILayout.LabelField("コピー中のオブジェクト");
+                // コピー元オブジェクト表示
+                EditorGUILayout.LabelField(Localization.L("SourceObject"));
                 using (new GUILayout.VerticalScope(GUI.skin.box))
                 {
                     EditorGUILayout.LabelField(ComponentCopier.root ? ComponentCopier.root.name : "");
                 }
 
                 // オプション: Transformコピー
-                settings.copyTransform = GUILayout.Toggle(settings.copyTransform, "Transformがマッチした場合値をコピー");
+                settings.copyTransform = GUILayout.Toggle(settings.copyTransform, Localization.Content("CopyTransform"));
                 settings.SaveSetting("copyTransform", settings.copyTransform.ToString());
                 ComponentCopier.copyTransform = settings.copyTransform;
 
                 // オプション: 削除後コピー
-                settings.isRemoveBeforeCopy = GUILayout.Toggle(settings.isRemoveBeforeCopy, "コピー先に同じコンポーネントがあったら削除");
+                settings.isRemoveBeforeCopy = GUILayout.Toggle(settings.isRemoveBeforeCopy, Localization.Content("RemoveExisting"));
                 settings.SaveSetting("isRemoveBeforeCopy", settings.isRemoveBeforeCopy.ToString());
 
                 // オプション: オブジェクトコピー
-                settings.isObjectCopy = GUILayout.Toggle(settings.isObjectCopy, "コピー先にオブジェクトがなかったらオブジェクトをコピー");
+                settings.isObjectCopy = GUILayout.Toggle(settings.isObjectCopy, Localization.Content("CreateMissing"));
                 settings.SaveSetting("isObjectCopy", settings.isObjectCopy.ToString());
 
                 if (settings.isObjectCopy)
                 {
                     using (new GUILayout.VerticalScope(GUI.skin.box))
                     {
-                        settings.isObjectCopyMatchOnly = GUILayout.Toggle(settings.isObjectCopyMatchOnly, "マッチしたコンポーネントを持つオブジェクトのみコピー");
+                        settings.isObjectCopyMatchOnly = GUILayout.Toggle(settings.isObjectCopyMatchOnly, Localization.Content("MatchedOnly"));
                         settings.SaveSetting("isObjectCopyMatchOnly", settings.isObjectCopyMatchOnly.ToString());
                     }
                 }
 
                 // オプション: Cloth NNS
-                settings.isClothNNS = GUILayout.Toggle(settings.isClothNNS, "ClothコンポーネントのConstraintsを一番近い頂点からコピー");
+                settings.isClothNNS = GUILayout.Toggle(settings.isClothNNS, Localization.Content("ClothNNS"));
                 settings.SaveSetting("isClothNNS", settings.isClothNNS.ToString());
                 ComponentCopier.isClothNNS = settings.isClothNNS;
 
                 // オプション: レポート表示
-                settings.showReportAfterPaste = GUILayout.Toggle(settings.showReportAfterPaste, "Paste時に結果を表示");
+                settings.showReportAfterPaste = GUILayout.Toggle(settings.showReportAfterPaste, Localization.Content("ShowReport"));
                 settings.SaveSetting("showReportAfterPaste", settings.showReportAfterPaste.ToString());
                 ComponentCopier.showReportAfterPaste = settings.showReportAfterPaste;
 
@@ -186,7 +199,7 @@ namespace CopyComponentsByRegex
                 // Export Debug Infoセクション（折りたたみ可能）
                 EditorGUILayout.Space();
                 bool prevShowDebugExport = settings.showDebugExport;
-                settings.showDebugExport = EditorGUILayout.Foldout(settings.showDebugExport, "デバッグ情報エクスポート", true);
+                settings.showDebugExport = EditorGUILayout.Foldout(settings.showDebugExport, Localization.L("DebugExport"), true);
                 if (prevShowDebugExport != settings.showDebugExport)
                 {
                     settings.SaveSetting("showDebugExport", settings.showDebugExport.ToString());
@@ -205,20 +218,20 @@ namespace CopyComponentsByRegex
                             string message = "";
                             if (!hasSrc && !hasDst)
                             {
-                                message = "CopyとPaste先の選択が必要です";
+                                message = Localization.L("CopyAndPasteRequired");
                             }
                             else if (!hasSrc)
                             {
-                                message = "先にCopy操作を実行してください";
+                                message = Localization.L("CopySourceFirst");
                             }
                             else
                             {
-                                message = "Paste先オブジェクトを選択してください";
+                                message = Localization.L("SelectDestination");
                             }
                             EditorGUILayout.HelpBox(message, MessageType.Info);
                         }
 
-                        exportIncludeProperties = EditorGUILayout.ToggleLeft("プロパティ値を含める", exportIncludeProperties);
+                        exportIncludeProperties = EditorGUILayout.ToggleLeft(Localization.L("IncludeProperties"), exportIncludeProperties);
                         
                         using (new EditorGUI.DisabledScope(!canExport))
                         {
@@ -240,7 +253,7 @@ namespace CopyComponentsByRegex
 
                 // 注意書き（折りたたみ可能）
                 bool prevShowNotes = settings.showNotes;
-                settings.showNotes = EditorGUILayout.Foldout(settings.showNotes, "注意書き", true);
+                settings.showNotes = EditorGUILayout.Foldout(settings.showNotes, Localization.L("Notes"), true);
                 if (prevShowNotes != settings.showNotes)
                 {
                     settings.SaveSetting("showNotes", settings.showNotes.ToString());
@@ -251,12 +264,7 @@ namespace CopyComponentsByRegex
                     labelStyle.wordWrap = true;
                     using (new GUILayout.VerticalScope(GUI.skin.box))
                     {
-                        GUILayout.Label(
-                            "「一番近い頂点からコピー」を利用する場合はあらかじめClothのコピー先にClothを追加するか、" +
-                            "最初はチェックなしでコピーした後、別途Clothのみを対象にして「一番近い頂点からコピー」を行ってください。" +
-                            "\n(UnityのClothコンポーネントの初期化時に頂点座標がずれてるのが原因のため現在は修正困難です)",
-                            labelStyle
-                        );
+                        GUILayout.Label(Localization.L("NotesContent"), labelStyle);
                     }
                 }
             }
@@ -272,7 +280,7 @@ namespace CopyComponentsByRegex
         private void DrawReplacementRulesSection()
         {
             bool prevShowReplacementRules = settings.showReplacementRules;
-            settings.showReplacementRules = EditorGUILayout.Foldout(settings.showReplacementRules, "置換リスト", true);
+            settings.showReplacementRules = EditorGUILayout.Foldout(settings.showReplacementRules, Localization.L("NameMappingRules"), true);
             if (prevShowReplacementRules != settings.showReplacementRules)
             {
                 settings.SaveSetting("showReplacementRules", settings.showReplacementRules.ToString());
@@ -288,11 +296,11 @@ namespace CopyComponentsByRegex
                 // ルール追加ボタン
                 using (new GUILayout.HorizontalScope())
                 {
-                    if (GUILayout.Button("+ 正規表現", GUILayout.Width(100)))
+                    if (GUILayout.Button(Localization.L("AddRegex"), GUILayout.Width(100)))
                     {
                         settings.replacementRules.Add(new ReplacementRule("", ""));
                     }
-                    if (GUILayout.Button("+ HumanoidBone", GUILayout.Width(120)))
+                    if (GUILayout.Button(Localization.L("AddHumanoidBone"), GUILayout.Width(120)))
                     {
                         settings.replacementRules.Add(new ReplacementRule(HumanoidBoneGroup.All));
                     }
@@ -319,15 +327,15 @@ namespace CopyComponentsByRegex
                         if (rule.type == RuleType.Regex)
                         {
                             // 正規表現の場合
-                            GUILayout.Label("検索:", GUILayout.Width(35));
+                            GUILayout.Label(Localization.L("Find"), GUILayout.Width(35));
                             rule.srcPattern = GUILayout.TextField(rule.srcPattern, GUILayout.Width(100));
-                            GUILayout.Label("置換:", GUILayout.Width(35));
+                            GUILayout.Label(Localization.L("Replace"), GUILayout.Width(35));
                             rule.dstPattern = GUILayout.TextField(rule.dstPattern, GUILayout.Width(100));
                         }
                         else
                         {
                             // HumanoidBoneの場合
-                            string[] modeOptions = new string[] { "グループ", "個別" };
+                            string[] modeOptions = new string[] { Localization.L("Group"), Localization.L("Single") };
                             int currentModeIndex = rule.boneSelectionMode == HumanoidBoneSelectionMode.Group ? 0 : 1;
                             int newModeIndex = EditorGUILayout.Popup(currentModeIndex, modeOptions, GUILayout.Width(65));
                             rule.boneSelectionMode = newModeIndex == 0 ? HumanoidBoneSelectionMode.Group : HumanoidBoneSelectionMode.Individual;
@@ -373,7 +381,7 @@ namespace CopyComponentsByRegex
 
                 if (settings.replacementRules.Count == 0)
                 {
-                    EditorGUILayout.HelpBox("置換ルールが設定されていません。\nルールがない場合は名前の完全一致のみでマッチします。", MessageType.Info);
+                    EditorGUILayout.HelpBox(Localization.L("NoRulesInfo"), MessageType.Info);
                 }
             }
 
@@ -413,19 +421,19 @@ namespace CopyComponentsByRegex
             string warningMsg = "";
             if (ComponentCopier.root == null)
             {
-                warningMsg = "HumanoidBoneルールが設定されています。\nCopyを実行してからPasteしてください。";
+                warningMsg = Localization.L("HumanoidWarning_CopyFirst");
             }
             else if (!srcIsHumanoid && !dstIsHumanoid)
             {
-                warningMsg = "コピー元とコピー先の両方がHumanoidではありません。\nHumanoidBoneルールは機能しません。";
+                warningMsg = Localization.L("HumanoidWarning_NeitherHumanoid");
             }
             else if (!srcIsHumanoid)
             {
-                warningMsg = "コピー元がHumanoidではありません。\nHumanoidBoneルールは機能しません。";
+                warningMsg = Localization.L("HumanoidWarning_SrcNotHumanoid");
             }
             else
             {
-                warningMsg = "コピー先がHumanoidではありません。\nHumanoidBoneルールは機能しません。";
+                warningMsg = Localization.L("HumanoidWarning_DstNotHumanoid");
             }
 
             EditorGUILayout.HelpBox(warningMsg, MessageType.Warning);
