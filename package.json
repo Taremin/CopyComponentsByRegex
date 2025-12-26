@@ -1,7 +1,7 @@
 {
   "name": "taremin.copy-components-by-regex",
   "displayName": "CopyComponentsByRegex",
-  "version": "0.1.0-pre1",
+  "version": "0.1.0-pre2",
   "unity": "2019.2",
   "description": "Copy components by Regex",
   "author": {
