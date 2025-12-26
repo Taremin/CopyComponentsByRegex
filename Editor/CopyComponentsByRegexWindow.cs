@@ -19,6 +19,9 @@ namespace CopyComponentsByRegex
         private CopySettings settings = new CopySettings();
         private bool exportIncludeProperties = true;
 
+        // コンポーネント一覧表示用
+        private Vector2 componentListScrollPosition;
+
         private void OnEnable()
         {
             // バージョン情報の読み込み
@@ -72,6 +75,45 @@ namespace CopyComponentsByRegex
                 if (!ComponentCopier.activeObject)
                 {
                     return;
+                }
+
+                // コンポーネント一覧（折りたたみ）
+                bool prevShowComponentList = settings.showComponentList;
+                settings.showComponentList = EditorGUILayout.Foldout(settings.showComponentList, "コンポーネント一覧", true);
+                if (prevShowComponentList != settings.showComponentList)
+                {
+                    settings.SaveSetting("showComponentList", settings.showComponentList.ToString());
+                }
+
+                if (settings.showComponentList)
+                {
+                    using (new GUILayout.VerticalScope(GUI.skin.box))
+                    {
+                        componentListScrollPosition = EditorGUILayout.BeginScrollView(
+                            componentListScrollPosition,
+                            GUILayout.MaxHeight(150));
+
+                        var components = ComponentCopier.activeObject.GetComponents<Component>();
+                        foreach (var component in components)
+                        {
+                            if (component != null)
+                            {
+                                using (new GUILayout.HorizontalScope())
+                                {
+                                    string typeName = component.GetType().Name;
+                                    EditorGUILayout.LabelField(typeName);
+
+                                    // クリップボードにコピーボタン
+                                    if (GUILayout.Button("コピー", GUILayout.Width(50)))
+                                    {
+                                        GUIUtility.systemCopyBuffer = typeName;
+                                    }
+                                }
+                            }
+                        }
+
+                        EditorGUILayout.EndScrollView();
+                    }
                 }
 
                 // 正規表現パターン

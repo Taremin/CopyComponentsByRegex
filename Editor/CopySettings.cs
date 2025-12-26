@@ -62,6 +62,11 @@ namespace CopyComponentsByRegex
         public bool showDebugExport = false;
 
         /// <summary>
+        /// コンポーネント一覧の折りたたみ状態
+        /// </summary>
+        public bool showComponentList = false;
+
+        /// <summary>
         /// 名前置換ルールのリスト
         /// </summary>
         public List<ReplacementRule> replacementRules = new List<ReplacementRule>();
@@ -81,6 +86,7 @@ namespace CopyComponentsByRegex
             showReplacementRules = ParseBool(EditorUserSettings.GetConfigValue(ConfigPrefix + "showReplacementRules"), showReplacementRules);
             showNotes = ParseBool(EditorUserSettings.GetConfigValue(ConfigPrefix + "showNotes"), showNotes);
             showDebugExport = ParseBool(EditorUserSettings.GetConfigValue(ConfigPrefix + "showDebugExport"), showDebugExport);
+            showComponentList = ParseBool(EditorUserSettings.GetConfigValue(ConfigPrefix + "showComponentList"), showComponentList);
         }
 
         /// <summary>
@@ -98,6 +104,7 @@ namespace CopyComponentsByRegex
             EditorUserSettings.SetConfigValue(ConfigPrefix + "showReplacementRules", showReplacementRules.ToString());
             EditorUserSettings.SetConfigValue(ConfigPrefix + "showNotes", showNotes.ToString());
             EditorUserSettings.SetConfigValue(ConfigPrefix + "showDebugExport", showDebugExport.ToString());
+            EditorUserSettings.SetConfigValue(ConfigPrefix + "showComponentList", showComponentList.ToString());
         }
 
         /// <summary>
