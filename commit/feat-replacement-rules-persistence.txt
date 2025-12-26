@@ -1,0 +1,7 @@
+feat: 置換ルールの永続化機能を追加
+
+- CopySettings.csにreplacementRulesの保存・読み込み処理を追加
+  - JsonUtilityを使用してJSON形式で永続化
+  - ReplacementRuleListWrapperラッパークラスを追加
+- CopySettingsTests.csを新規作成（7テストケース）
+- ドキュメント更新（name_mapping_guide.md/en.md）

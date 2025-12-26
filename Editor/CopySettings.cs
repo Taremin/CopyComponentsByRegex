@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using UnityEditor;
+using UnityEngine;
 
 namespace CopyComponentsByRegex
 {
@@ -10,6 +12,15 @@ namespace CopyComponentsByRegex
     public class CopySettings
     {
         private const string ConfigPrefix = "CopyComponentsByRegex/";
+
+        /// <summary>
+        /// JsonUtilityでList<T>をシリアライズするためのラッパークラス
+        /// </summary>
+        [Serializable]
+        private class ReplacementRuleListWrapper
+        {
+            public List<ReplacementRule> rules = new List<ReplacementRule>();
+        }
 
         /// <summary>
         /// コンポーネント検索用の正規表現パターン
@@ -87,6 +98,25 @@ namespace CopyComponentsByRegex
             showNotes = ParseBool(EditorUserSettings.GetConfigValue(ConfigPrefix + "showNotes"), showNotes);
             showDebugExport = ParseBool(EditorUserSettings.GetConfigValue(ConfigPrefix + "showDebugExport"), showDebugExport);
             showComponentList = ParseBool(EditorUserSettings.GetConfigValue(ConfigPrefix + "showComponentList"), showComponentList);
+
+            // 置換ルールの読み込み
+            string rulesJson = EditorUserSettings.GetConfigValue(ConfigPrefix + "replacementRules");
+            if (!string.IsNullOrEmpty(rulesJson))
+            {
+                try
+                {
+                    var wrapper = JsonUtility.FromJson<ReplacementRuleListWrapper>(rulesJson);
+                    if (wrapper != null && wrapper.rules != null)
+                    {
+                        replacementRules = wrapper.rules;
+                    }
+                }
+                catch (Exception)
+                {
+                    // JSONパースエラー時は空リストを維持
+                    replacementRules = new List<ReplacementRule>();
+                }
+            }
         }
 
         /// <summary>
@@ -105,6 +135,10 @@ namespace CopyComponentsByRegex
             EditorUserSettings.SetConfigValue(ConfigPrefix + "showNotes", showNotes.ToString());
             EditorUserSettings.SetConfigValue(ConfigPrefix + "showDebugExport", showDebugExport.ToString());
             EditorUserSettings.SetConfigValue(ConfigPrefix + "showComponentList", showComponentList.ToString());
+
+            // 置換ルールの保存
+            var wrapper = new ReplacementRuleListWrapper { rules = replacementRules };
+            EditorUserSettings.SetConfigValue(ConfigPrefix + "replacementRules", JsonUtility.ToJson(wrapper));
         }
 
         /// <summary>

@@ -21,6 +21,10 @@ This document explains the "Name Mapping Rules" feature for bridging GameObject 
 > - `J_Bip_*` is the bone naming convention used by **VRoid Studio** during export
 > - `mixamorig:*` is the naming convention used in **Adobe mixamo** rigs
 
+> [!TIP]
+> **Settings Persistence**
+> Replacement list settings are automatically saved. Settings are preserved even after restarting the Unity Editor.
+
 The Name Mapping Rules feature allows components to be correctly copied even when source and destination GameObjects have different names.
 
 ### Background
