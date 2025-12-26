@@ -65,6 +65,10 @@ namespace CopyComponentsByRegex
                     name = destination.name,
                     isHumanoid = NameMatcher.IsHumanoid(destination)
                 };
+
+                // デスティネーションの階層を構築
+                var dstTree = BuildTreeItemFromGameObject(destination);
+                data.destination.hierarchy = BuildHierarchy(dstTree, "", includeProperties);
             }
 
             // 設定情報
@@ -127,6 +131,21 @@ namespace CopyComponentsByRegex
 
             result.Add(hierarchyItem);
             return result;
+        }
+
+        /// <summary>
+        /// GameObjectからTreeItemを再帰的に構築
+        /// </summary>
+        private static TreeItem BuildTreeItemFromGameObject(GameObject go)
+        {
+            var item = new TreeItem(go);
+            
+            foreach (Transform child in go.transform)
+            {
+                item.children.Add(BuildTreeItemFromGameObject(child.gameObject));
+            }
+            
+            return item;
         }
 
         /// <summary>

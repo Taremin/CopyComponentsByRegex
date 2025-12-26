@@ -88,12 +88,20 @@ namespace CopyComponentsByRegex
             var dstAnimator = destination.GetComponent<Animator>();
             dstBoneMapping = NameMatcher.GetBoneMapping(dstAnimator);
 
+            // srcBoneMappingが設定されていない場合は再取得
+            if ((srcBoneMapping == null || srcBoneMapping.Count == 0) && copyTree?.gameObject != null)
+            {
+                var srcAnimator = copyTree.gameObject.GetComponent<Animator>();
+                srcBoneMapping = NameMatcher.GetBoneMapping(srcAnimator);
+            }
+
             // 設定の同期
             isRemoveBeforeCopy = settings.isRemoveBeforeCopy;
             isObjectCopy = settings.isObjectCopy;
             isObjectCopyMatchOnly = settings.isObjectCopyMatchOnly;
             isClothNNS = settings.isClothNNS;
             showReportAfterPaste = settings.showReportAfterPaste;
+            replacementRules = settings.replacementRules ?? new List<ReplacementRule>();
 
             // ログのクリア
             modificationLogs.Clear();
@@ -120,7 +128,7 @@ namespace CopyComponentsByRegex
             // レポート表示
             if (showReportAfterPaste && (modificationLogs.Count > 0 || modificationObjectLogs.Count > 0))
             {
-                ModificationReportPopup.Show(copyTree, destination, modificationLogs, modificationObjectLogs, isObjectCopy, false);
+                ModificationReportPopup.Show(copyTree, destination, modificationLogs, modificationObjectLogs, isObjectCopy, false, settings);
             }
         }
 
@@ -134,10 +142,22 @@ namespace CopyComponentsByRegex
                 return;
             }
 
+            // コピー先のHumanoidマッピングを取得
+            var dstAnimator = destination.GetComponent<Animator>();
+            dstBoneMapping = NameMatcher.GetBoneMapping(dstAnimator);
+
+            // srcBoneMappingが設定されていない場合は再取得
+            if ((srcBoneMapping == null || srcBoneMapping.Count == 0) && copyTree?.gameObject != null)
+            {
+                var srcAnimator = copyTree.gameObject.GetComponent<Animator>();
+                srcBoneMapping = NameMatcher.GetBoneMapping(srcAnimator);
+            }
+
             // 設定の同期
             isRemoveBeforeCopy = settings.isRemoveBeforeCopy;
             isObjectCopy = settings.isObjectCopy;
             isObjectCopyMatchOnly = settings.isObjectCopyMatchOnly;
+            replacementRules = settings.replacementRules ?? new List<ReplacementRule>();
 
             // ログのクリア
             modificationLogs.Clear();
@@ -161,7 +181,7 @@ namespace CopyComponentsByRegex
             // レポート表示
             if (modificationLogs.Count > 0 || modificationObjectLogs.Count > 0)
             {
-                ModificationReportPopup.Show(copyTree, destination, modificationLogs, modificationObjectLogs, isObjectCopy, true);
+                ModificationReportPopup.Show(copyTree, destination, modificationLogs, modificationObjectLogs, isObjectCopy, true, settings);
             }
         }
 

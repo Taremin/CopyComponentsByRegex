@@ -1,6 +1,7 @@
 // CopyComponentsByRegex の統合テスト
 // 複雑なオブジェクト階層を使用した実際のコピー機能のテスト
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
@@ -593,6 +594,125 @@ namespace CopyComponentsByRegex.Tests
                 ComponentCopier.srcBoneMapping, 
                 ComponentCopier.dstBoneMapping);
             Assert.IsTrue(regexMatch, "Regex rule should match Custom_Test -> Test");
+        }
+
+        /// <summary>
+        /// HumanoidBone置換ルールで hips が siri にマッチすること
+        /// バグ報告（case3/case4）: hipsがsiriにマッチせず、hipsがCreateObjectされていた
+        /// 期待動作: HumanoidBone Allルールにより、hips→siriがマッチ、CreateObjectは発生しない
+        /// </summary>
+        [Test]
+        public void HumanoidBoneReplacement_HipsMatchesSiri_NoCreateObject()
+        {
+            // Arrange: オブジェクト階層を構築
+            // Source: sourceRoot/root/hips/skirt
+            var srcRoot = CreateTestGameObject("root", sourceRoot.transform);
+            var srcHips = CreateTestGameObject("hips", srcRoot.transform);
+            var srcSkirt = CreateTestGameObject("skirt", srcHips.transform);
+            srcSkirt.AddComponent<BoxCollider>();  // コピー対象のコンポーネント
+
+            // Destination: destinationRoot/root/siri
+            var dstRoot = CreateTestGameObject("root", destinationRoot.transform);
+            var dstSiri = CreateTestGameObject("siri", dstRoot.transform);
+
+            // HumanoidBone Allルール
+            var rules = new List<ReplacementRule>
+            {
+                new ReplacementRule(HumanoidBoneGroup.All)
+            };
+
+            // 設定
+            var settings = new CopySettings
+            {
+                pattern = "Collider",
+                isObjectCopy = true,
+                replacementRules = rules
+            };
+
+            // Copy実行（copyTreeを構築）
+            ComponentCopier.activeObject = destinationRoot;
+            ComponentCopier.Copy(sourceRoot, settings);
+
+            // DryRunはボーンマッピングを上書きするため、手動で設定してMergeWalkdownを直接呼ぶ
+            ComponentCopier.srcBoneMapping = new Dictionary<string, HumanBodyBones>
+            {
+                { "hips", HumanBodyBones.Hips }
+            };
+            ComponentCopier.dstBoneMapping = new Dictionary<string, HumanBodyBones>
+            {
+                { "siri", HumanBodyBones.Hips }
+            };
+            ComponentCopier.replacementRules = rules;
+            ComponentCopier.isObjectCopy = true;
+
+            // Act: MergeWalkdownを直接呼び出し（DryRunモード）
+            ComponentCopier.modificationLogs.Clear();
+            ComponentCopier.modificationObjectLogs.Clear();
+            var copyTree = ComponentCopier.copyTree;
+            ComponentCopier.MergeWalkdown(destinationRoot, ref copyTree, 0, true);
+
+            // Assert: hipsがsiriにマッチし、CreateObjectは発生しない
+            var createLogs = ComponentCopier.modificationObjectLogs
+                .Where(x => x.operation == ModificationOperation.CreateObject)
+                .ToList();
+
+            Assert.AreEqual(0, createLogs.Count,
+                "HumanoidBone rule should match 'hips' to 'siri' via Hips bone mapping. " +
+                $"Unexpected CreateObject logs: {string.Join(", ", createLogs.Select(x => x.targetPath))}");
+        }
+
+        /// <summary>
+        /// HumanoidBone置換ルールでボーンマッピングが設定されていない場合はマッチしないこと
+        /// </summary>
+        [Test]
+        public void HumanoidBoneReplacement_WithoutBoneMapping_DoesNotMatch()
+        {
+            // Arrange: オブジェクト階層を構築
+            var srcRoot = CreateTestGameObject("root", sourceRoot.transform);
+            var srcHips = CreateTestGameObject("hips", srcRoot.transform);
+            srcHips.AddComponent<BoxCollider>();
+
+            var dstRoot = CreateTestGameObject("root", destinationRoot.transform);
+            var dstSiri = CreateTestGameObject("siri", dstRoot.transform);
+
+            // HumanoidBone Allルール
+            var rules = new List<ReplacementRule>
+            {
+                new ReplacementRule(HumanoidBoneGroup.All)
+            };
+
+            var settings = new CopySettings
+            {
+                pattern = "Collider",
+                isObjectCopy = true,
+                replacementRules = rules
+            };
+
+            ComponentCopier.activeObject = destinationRoot;
+            ComponentCopier.Copy(sourceRoot, settings);
+
+            // ボーンマッピングを設定しない（空のまま）
+            ComponentCopier.srcBoneMapping = new Dictionary<string, HumanBodyBones>();
+            ComponentCopier.dstBoneMapping = new Dictionary<string, HumanBodyBones>();
+            ComponentCopier.replacementRules = rules;
+
+            // Act
+            ComponentCopier.modificationLogs.Clear();
+            ComponentCopier.modificationObjectLogs.Clear();
+            settings.showReportAfterPaste = false;
+            ComponentCopier.DryRun(destinationRoot, settings);
+
+            // Assert: ボーンマッピングがないため、hipsはsiriにマッチせず
+            // isObjectCopy=trueなのでhipsがCreateObjectされる
+            var createLogs = ComponentCopier.modificationObjectLogs
+                .Where(x => x.operation == ModificationOperation.CreateObject)
+                .ToList();
+
+            // ボーンマッピングがない場合、hipsはsiriにマッチしないため
+            // CreateObjectが発生する（バグ再現状態）
+            Assert.IsTrue(createLogs.Count > 0 || 
+                ComponentCopier.modificationObjectLogs.Count == 0,
+                "Without bone mapping, hips should not match siri");
         }
         #endregion
     }

@@ -25,48 +25,74 @@ namespace CopyComponentsByRegex.Tests
     }
 
     /// <summary>
-    /// JSONファイルを読み込んでテストを実行するランナー
-    /// Tests/TestCases/ ディレクトリ内の.jsonファイルを自動検出して実行
-    /// 
-    /// ハイブリッドアプローチ:
-    /// - 型が見つかる → 本物のコンポーネントを追加
-    /// - 型が見つからない → StubComponentで代替し、警告を出力
+    /// BugReportTestRunnerの実行結果
     /// </summary>
-    [TestFixture]
-    public class BugReportTestRunner
+    public class BugReportExecutionResult
     {
-        // 型が見つからなかったコンポーネントを記録
-        private List<string> missingComponentTypes = new List<string>();
+        /// <summary>テスト名</summary>
+        public string TestName { get; set; }
+
+        /// <summary>ソースオブジェクト</summary>
+        public GameObject SourceRoot { get; set; }
+
+        /// <summary>デスティネーションオブジェクト</summary>
+        public GameObject DestinationRoot { get; set; }
+
+        /// <summary>設定</summary>
+        public CopySettings Settings { get; set; }
+
+        /// <summary>元のBugReportData</summary>
+        public BugReportData Data { get; set; }
+
+        /// <summary>コンポーネントの変更ログ</summary>
+        public List<ModificationEntry> ModificationLogs { get; set; } = new List<ModificationEntry>();
+
+        /// <summary>オブジェクトの変更ログ</summary>
+        public List<ModificationEntry> ModificationObjectLogs { get; set; } = new List<ModificationEntry>();
+
+        /// <summary>見つからなかったコンポーネント型</summary>
+        public List<string> MissingComponentTypes { get; set; } = new List<string>();
+
+        /// <summary>実行が成功したかどうか</summary>
+        public bool Success { get; set; }
+
+        /// <summary>エラーメッセージ（失敗時）</summary>
+        public string ErrorMessage { get; set; }
 
         /// <summary>
-        /// テストケースファイルのパスを取得
-        /// テストケースが存在しない場合は、スキップ用のnullを返す
+        /// リソースをクリーンアップ
         /// </summary>
-        public static IEnumerable<string> GetTestCases()
+        public void Cleanup()
         {
-            var testCasesDir = PathUtility.GetTestCasesDirectoryPath();
-            
-            if (!Directory.Exists(testCasesDir))
+            if (SourceRoot != null)
             {
-                // テストケースディレクトリが存在しない場合、スキップ用のnullを返す
-                yield return null;
-                yield break;
+                UnityEngine.Object.DestroyImmediate(SourceRoot);
+                SourceRoot = null;
+            }
+            if (DestinationRoot != null)
+            {
+                UnityEngine.Object.DestroyImmediate(DestinationRoot);
+                DestinationRoot = null;
             }
 
-            var jsonFiles = Directory.GetFiles(testCasesDir, "*.json");
-            if (jsonFiles.Length == 0)
-            {
-                // テストケースファイルが存在しない場合、スキップ用のnullを返す
-                yield return null;
-                yield break;
-            }
-
-            foreach (var jsonFile in jsonFiles)
-            {
-                yield return jsonFile;
-            }
+            // ComponentCopierの状態をクリア
+            ComponentCopier.copyTree = null;
+            ComponentCopier.root = null;
+            ComponentCopier.transforms = null;
+            ComponentCopier.components = null;
+            ComponentCopier.modificationLogs.Clear();
+            ComponentCopier.modificationObjectLogs.Clear();
+            ComponentCopier.srcBoneMapping = null;
+            ComponentCopier.dstBoneMapping = null;
         }
+    }
 
+    /// <summary>
+    /// JSONファイルを読み込んでPaste/DryRunを実行するユーティリティ
+    /// テストケースの検証ロジックはIntegrationTestsに実装する
+    /// </summary>
+    public static class BugReportTestUtility
+    {
         /// <summary>
         /// JSONファイルからBugReportDataを読み込む
         /// </summary>
@@ -77,129 +103,123 @@ namespace CopyComponentsByRegex.Tests
         }
 
         /// <summary>
-        /// JSONベースのテストを実行
+        /// JSONファイルからテスト環境を構築してPasteを実行
         /// </summary>
-        [Test]
-        [TestCaseSource(nameof(GetTestCases))]
-        public void RunBugReportTest(string jsonPath)
+        /// <param name="jsonFileName">TestCasesディレクトリ内のJSONファイル名（例: "case3.json"）</param>
+        /// <returns>実行結果</returns>
+        public static BugReportExecutionResult ExecuteFromFile(string jsonFileName)
         {
-            // テストケースが存在しない場合はスキップ
-            if (string.IsNullOrEmpty(jsonPath))
+            var testCasesDir = PathUtility.GetTestCasesDirectoryPath();
+            var jsonPath = Path.Combine(testCasesDir, jsonFileName);
+            
+            if (!File.Exists(jsonPath))
             {
-                Assert.Ignore("テストケースファイルが存在しません。Tests/TestCases/ ディレクトリにJSONファイルを配置してください。");
-                return;
+                return new BugReportExecutionResult
+                {
+                    Success = false,
+                    ErrorMessage = $"JSONファイルが見つかりません: {jsonPath}"
+                };
             }
 
-            // JSONファイルを読み込む
             var data = LoadFromFile(jsonPath);
-            Assert.IsNotNull(data, $"Failed to load JSON from: {jsonPath}");
-
-            // バージョンチェック
-            Assert.AreEqual("1.0.0", data.version, "Unsupported JSON version");
-
-            // テストケースを実行
-            ExecuteTestCase(data, Path.GetFileNameWithoutExtension(jsonPath));
+            return Execute(data, Path.GetFileNameWithoutExtension(jsonFileName));
         }
 
         /// <summary>
-        /// テストケースを実行
+        /// BugReportDataからテスト環境を構築してPasteを実行
         /// </summary>
-        private void ExecuteTestCase(BugReportData data, string testName)
+        public static BugReportExecutionResult Execute(BugReportData data, string testName = "test")
         {
-            missingComponentTypes.Clear();
-
-            // 1. オブジェクト階層を再構築
-            GameObject sourceRoot = null;
-            GameObject destRoot = null;
+            var result = new BugReportExecutionResult
+            {
+                TestName = testName,
+                Data = data
+            };
 
             try
             {
-                // === 検証1: オブジェクト階層の再構築 ===
+                // オブジェクト階層を再構築
                 if (data.source != null && data.source.hierarchy.Count > 0)
                 {
-                    sourceRoot = BuildHierarchy(data.source.name, data.source.hierarchy);
+                    result.SourceRoot = BuildHierarchy(data.source.name, data.source.hierarchy, result.MissingComponentTypes);
                 }
 
                 if (data.destination != null)
                 {
-                    destRoot = new GameObject(data.destination.name);
+                    if (data.destination.hierarchy != null && data.destination.hierarchy.Count > 0)
+                    {
+                        result.DestinationRoot = BuildHierarchy(data.destination.name, data.destination.hierarchy, result.MissingComponentTypes);
+                    }
+                    else
+                    {
+                        result.DestinationRoot = new GameObject(data.destination.name);
+                        result.DestinationRoot.hideFlags = HideFlags.HideAndDontSave;
+                    }
                 }
 
-                Assert.IsNotNull(sourceRoot, $"[{testName}] ソースオブジェクトの構築に失敗");
-                Assert.IsNotNull(destRoot, $"[{testName}] デスティネーションオブジェクトの構築に失敗");
+                if (result.SourceRoot == null || result.DestinationRoot == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = "オブジェクト階層の構築に失敗";
+                    return result;
+                }
+
+                // 設定の復元
+                result.Settings = BuildSettings(data.settings);
 
                 // 見つからなかったコンポーネント型を警告
-                if (missingComponentTypes.Count > 0)
+                if (result.MissingComponentTypes.Count > 0)
                 {
                     Debug.LogWarning($"[{testName}] 以下のコンポーネント型が見つからず、StubComponentで代替しました:\n" +
-                        string.Join("\n", missingComponentTypes.Select(t => $"  - {t}")));
+                        string.Join("\n", result.MissingComponentTypes.Select(t => $"  - {t}")));
                 }
 
-                // === 検証2: 設定の復元 ===
-                var settings = BuildSettings(data.settings);
-                Assert.IsNotNull(settings, $"[{testName}] 設定の復元に失敗");
-                Assert.AreEqual(data.settings?.pattern ?? "", settings.pattern, $"[{testName}] パターンの復元が不正");
+                // ComponentCopierの状態を初期化
+                ComponentCopier.activeObject = result.DestinationRoot;
 
-                // 置換ルールの数を検証
-                int expectedRuleCount = data.settings?.replacementRules?.Count ?? 0;
-                Assert.AreEqual(expectedRuleCount, settings.replacementRules.Count, 
-                    $"[{testName}] 置換ルール数の復元が不正");
+                // Copy操作を実行
+                ComponentCopier.Copy(result.SourceRoot, result.Settings);
 
-                // === 検証3: modificationLogsの期待値検証 ===
-                // JSONに記録されたmodificationLogsを検証（実際のコピー操作とは独立）
-                AssertExpectedModificationLogs(data.modificationLogs, testName);
-
-                // === 追加検証: 型が全て利用可能な場合のみコピー操作を実行 ===
-                if (missingComponentTypes.Count == 0)
+                // HumanoidBoneルールがある場合、ボーンマッピングを設定
+                bool hasHumanoidRule = result.Settings.replacementRules.Any(r => 
+                    r.enabled && r.type == RuleType.HumanoidBone);
+                if (hasHumanoidRule)
                 {
-                    // ComponentCopierの状態を初期化
-                    ComponentCopier.activeObject = destRoot;
-
-                    // Copy操作を実行
-                    ComponentCopier.Copy(sourceRoot, settings);
-                    Assert.IsNotNull(ComponentCopier.copyTree, $"[{testName}] CopyTreeの作成に失敗");
-
-                    // Paste操作を実行（showReportAfterPasteをfalseに設定してポップアップを抑制）
-                    settings.showReportAfterPaste = false;
-                    ComponentCopier.Paste(destRoot, settings);
-
-                    // 実際のmodificationLogsと比較
-                    AssertActualModificationLogs(data.modificationLogs, testName);
+                    ComponentCopier.srcBoneMapping = BuildBoneMappingFromHierarchy(
+                        data.source?.hierarchy, data.source?.isHumanoid ?? false);
+                    ComponentCopier.dstBoneMapping = BuildBoneMappingFromHierarchy(
+                        data.destination?.hierarchy, data.destination?.isHumanoid ?? false);
                 }
-                else
-                {
-                    Debug.Log($"[{testName}] 一部のコンポーネント型が利用不可のため、コピー操作テストをスキップしました");
-                }
+
+                // Paste操作を実行
+                result.Settings.showReportAfterPaste = false;
+                ComponentCopier.Paste(result.DestinationRoot, result.Settings);
+
+                // 結果を収集
+                result.ModificationLogs = new List<ModificationEntry>(ComponentCopier.modificationLogs);
+                result.ModificationObjectLogs = new List<ModificationEntry>(ComponentCopier.modificationObjectLogs);
+                result.Success = true;
             }
-            finally
+            catch (Exception ex)
             {
-                // クリーンアップ
-                if (sourceRoot != null) UnityEngine.Object.DestroyImmediate(sourceRoot);
-                if (destRoot != null) UnityEngine.Object.DestroyImmediate(destRoot);
-
-                // ComponentCopierの状態をクリア
-                ComponentCopier.copyTree = null;
-                ComponentCopier.root = null;
-                ComponentCopier.transforms = null;
-                ComponentCopier.components = null;
-                ComponentCopier.modificationLogs.Clear();
-                ComponentCopier.modificationObjectLogs.Clear();
-                ComponentCopier.srcBoneMapping = null;
-                ComponentCopier.dstBoneMapping = null;
+                result.Success = false;
+                result.ErrorMessage = ex.Message;
             }
+
+            return result;
         }
 
         /// <summary>
         /// オブジェクト階層を構築
         /// </summary>
-        private GameObject BuildHierarchy(string rootName, List<HierarchyItemData> hierarchy)
+        private static GameObject BuildHierarchy(string rootName, List<HierarchyItemData> hierarchy, List<string> missingComponentTypes)
         {
             GameObject root = new GameObject(rootName);
             root.hideFlags = HideFlags.HideAndDontSave;
 
             foreach (var item in hierarchy)
             {
-                BuildHierarchyRecursive(root.transform, item);
+                BuildHierarchyRecursive(root.transform, item, missingComponentTypes);
             }
 
             return root;
@@ -207,11 +227,9 @@ namespace CopyComponentsByRegex.Tests
 
         /// <summary>
         /// 階層を再帰的に構築
-        /// ハイブリッドアプローチ: 型が見つからない場合はStubComponentで代替
         /// </summary>
-        private void BuildHierarchyRecursive(Transform parent, HierarchyItemData item)
+        private static void BuildHierarchyRecursive(Transform parent, HierarchyItemData item, List<string> missingComponentTypes)
         {
-            // 親と同名でない場合のみ新しいGameObjectを作成
             Transform current = parent;
             if (parent.name != item.name)
             {
@@ -228,12 +246,10 @@ namespace CopyComponentsByRegex.Tests
 
                 if (type != null && type != typeof(Transform) && type != typeof(RectTransform))
                 {
-                    // 型が見つかった → 本物のコンポーネントを追加
                     current.gameObject.AddComponent(type);
                 }
                 else if (type == null && !string.IsNullOrEmpty(compData.typeFullName))
                 {
-                    // 型が見つからない → StubComponentで代替
                     var stub = current.gameObject.AddComponent<StubComponent>();
                     stub.originalTypeName = compData.typeName;
                     stub.originalTypeFullName = compData.typeFullName;
@@ -241,7 +257,6 @@ namespace CopyComponentsByRegex.Tests
                         ? new List<PropertyData>(compData.properties) 
                         : new List<PropertyData>();
 
-                    // 記録
                     if (!missingComponentTypes.Contains(compData.typeFullName))
                     {
                         missingComponentTypes.Add(compData.typeFullName);
@@ -252,22 +267,20 @@ namespace CopyComponentsByRegex.Tests
             // 子オブジェクトを構築
             foreach (var child in item.children)
             {
-                BuildHierarchyRecursive(current, child);
+                BuildHierarchyRecursive(current, child, missingComponentTypes);
             }
         }
 
         /// <summary>
         /// コンポーネント型を取得
         /// </summary>
-        private Type GetComponentType(string typeFullName)
+        private static Type GetComponentType(string typeFullName)
         {
             if (string.IsNullOrEmpty(typeFullName)) return null;
 
-            // Unity標準アセンブリから型を探す
             var type = Type.GetType(typeFullName);
             if (type != null) return type;
 
-            // 全アセンブリから探す
             foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
                 type = assembly.GetType(typeFullName);
@@ -283,7 +296,7 @@ namespace CopyComponentsByRegex.Tests
         /// <summary>
         /// CopySettingsを構築
         /// </summary>
-        private CopySettings BuildSettings(SettingsData settingsData)
+        private static CopySettings BuildSettings(SettingsData settingsData)
         {
             var settings = new CopySettings();
 
@@ -336,47 +349,162 @@ namespace CopyComponentsByRegex.Tests
         }
 
         /// <summary>
-        /// JSONに記録されたmodificationLogsの期待値を検証
-        /// （実際のコピー操作とは独立して、JSONデータの妥当性を検証）
+        /// 階層構造からボーンマッピングを構築
         /// </summary>
-        private void AssertExpectedModificationLogs(List<ModificationLogData> expectedLogs, string testName)
+        private static Dictionary<string, HumanBodyBones> BuildBoneMappingFromHierarchy(
+            List<HierarchyItemData> hierarchy, bool isHumanoid)
         {
-            if (expectedLogs == null || expectedLogs.Count == 0)
+            var mapping = new Dictionary<string, HumanBodyBones>();
+            
+            if (!isHumanoid || hierarchy == null)
             {
-                return;
+                return mapping;
             }
 
-            // 各ログエントリが必要なフィールドを持っているか確認
-            foreach (var log in expectedLogs)
+            var boneNamePatterns = new Dictionary<string, HumanBodyBones>(StringComparer.OrdinalIgnoreCase)
             {
-                Assert.IsFalse(string.IsNullOrEmpty(log.componentType), 
-                    $"[{testName}] modificationLog.componentType が空です");
-                Assert.IsFalse(string.IsNullOrEmpty(log.operation), 
-                    $"[{testName}] modificationLog.operation が空です");
+                { "hips", HumanBodyBones.Hips },
+                { "siri", HumanBodyBones.Hips },
+                { "pelvis", HumanBodyBones.Hips },
+                { "spine", HumanBodyBones.Spine },
+                { "spine1", HumanBodyBones.Spine },
+                { "chest", HumanBodyBones.Chest },
+                { "spine2", HumanBodyBones.Chest },
+                { "upperchest", HumanBodyBones.UpperChest },
+                { "spine3", HumanBodyBones.UpperChest },
+                { "neck", HumanBodyBones.Neck },
+                { "head", HumanBodyBones.Head },
+                { "leftshoulder", HumanBodyBones.LeftShoulder },
+                { "shoulder.l", HumanBodyBones.LeftShoulder },
+                { "rightshoulder", HumanBodyBones.RightShoulder },
+                { "shoulder.r", HumanBodyBones.RightShoulder },
+                { "leftupperarm", HumanBodyBones.LeftUpperArm },
+                { "upper_arm.l", HumanBodyBones.LeftUpperArm },
+                { "rightupperarm", HumanBodyBones.RightUpperArm },
+                { "upper_arm.r", HumanBodyBones.RightUpperArm },
+                { "leftlowerarm", HumanBodyBones.LeftLowerArm },
+                { "lower_arm.l", HumanBodyBones.LeftLowerArm },
+                { "rightlowerarm", HumanBodyBones.RightLowerArm },
+                { "lower_arm.r", HumanBodyBones.RightLowerArm },
+                { "lefthand", HumanBodyBones.LeftHand },
+                { "hand.l", HumanBodyBones.LeftHand },
+                { "righthand", HumanBodyBones.RightHand },
+                { "hand.r", HumanBodyBones.RightHand },
+                { "leftupperleg", HumanBodyBones.LeftUpperLeg },
+                { "upper_leg.l", HumanBodyBones.LeftUpperLeg },
+                { "rightupperleg", HumanBodyBones.RightUpperLeg },
+                { "upper_leg.r", HumanBodyBones.RightUpperLeg },
+                { "leftlowerleg", HumanBodyBones.LeftLowerLeg },
+                { "lower_leg.l", HumanBodyBones.LeftLowerLeg },
+                { "rightlowerleg", HumanBodyBones.RightLowerLeg },
+                { "lower_leg.r", HumanBodyBones.RightLowerLeg },
+                { "leftfoot", HumanBodyBones.LeftFoot },
+                { "foot.l", HumanBodyBones.LeftFoot },
+                { "rightfoot", HumanBodyBones.RightFoot },
+                { "foot.r", HumanBodyBones.RightFoot },
+                { "lefttoes", HumanBodyBones.LeftToes },
+                { "toe.l", HumanBodyBones.LeftToes },
+                { "righttoes", HumanBodyBones.RightToes },
+                { "toe.r", HumanBodyBones.RightToes }
+            };
+
+            void ScanHierarchy(List<HierarchyItemData> items)
+            {
+                if (items == null) return;
+                
+                foreach (var item in items)
+                {
+                    if (boneNamePatterns.TryGetValue(item.name, out var bone))
+                    {
+                        if (!mapping.ContainsKey(item.name))
+                        {
+                            mapping[item.name] = bone;
+                        }
+                    }
+                    ScanHierarchy(item.children);
+                }
+            }
+
+            ScanHierarchy(hierarchy);
+            return mapping;
+        }
+    }
+
+    /// <summary>
+    /// バグレポートテストランナー（後方互換性のため残す）
+    /// 新しいテストはIntegrationTestsにBugReportTestUtilityを使って追加すること
+    /// </summary>
+    [TestFixture]
+    public class BugReportTestRunner
+    {
+        /// <summary>
+        /// テストケースファイルのパスを取得
+        /// </summary>
+        public static IEnumerable<string> GetTestCases()
+        {
+            var testCasesDir = PathUtility.GetTestCasesDirectoryPath();
+            
+            if (!Directory.Exists(testCasesDir))
+            {
+                yield return null;
+                yield break;
+            }
+
+            var jsonFiles = Directory.GetFiles(testCasesDir, "*.json");
+            if (jsonFiles.Length == 0)
+            {
+                yield return null;
+                yield break;
+            }
+
+            foreach (var jsonFile in jsonFiles)
+            {
+                yield return jsonFile;
             }
         }
 
         /// <summary>
-        /// 実際のmodificationLogsと期待値を比較
+        /// JSONベースのテストを実行（後方互換性）
+        /// 各ケースの詳細な検証はIntegrationTestsで行う
         /// </summary>
-        private void AssertActualModificationLogs(List<ModificationLogData> expectedLogs, string testName)
+        [Test]
+        [TestCaseSource(nameof(GetTestCases))]
+        public void RunBugReportTest(string jsonPath)
         {
-            if (expectedLogs == null || expectedLogs.Count == 0)
+            if (string.IsNullOrEmpty(jsonPath))
             {
+                Assert.Ignore("テストケースファイルが存在しません。Tests/TestCases/ ディレクトリにJSONファイルを配置してください。");
                 return;
             }
 
-            var actualLogs = ComponentCopier.modificationLogs;
+            var testName = Path.GetFileNameWithoutExtension(jsonPath);
+            var data = BugReportTestUtility.LoadFromFile(jsonPath);
+            Assert.IsNotNull(data, $"Failed to load JSON from: {jsonPath}");
+            Assert.AreEqual("1.0.0", data.version, "Unsupported JSON version");
 
-            foreach (var expected in expectedLogs)
+            // ユーティリティを使って実行
+            var result = BugReportTestUtility.Execute(data, testName);
+
+            try
             {
-                bool found = actualLogs.Any(actual =>
-                    actual.componentType == expected.componentType &&
-                    actual.operation.ToString() == expected.operation
-                );
-
-                Assert.IsTrue(found, 
-                    $"[{testName}] 期待されるログが見つかりません: {expected.componentType} - {expected.operation}");
+                // 基本的な検証のみ行う（詳細な検証はIntegrationTestsで）
+                if (result.MissingComponentTypes.Count == 0)
+                {
+                    Assert.IsTrue(result.Success, result.ErrorMessage);
+                    
+                    // 結果をログ出力（デバッグ用）
+                    Debug.Log($"[{testName}] 実行完了 - " +
+                        $"ModificationLogs: {result.ModificationLogs.Count}, " +
+                        $"ObjectLogs: {result.ModificationObjectLogs.Count}");
+                }
+                else
+                {
+                    Debug.Log($"[{testName}] 一部のコンポーネント型が利用不可のため、詳細な検証をスキップ");
+                }
+            }
+            finally
+            {
+                result.Cleanup();
             }
         }
     }

@@ -194,9 +194,80 @@ namespace CopyComponentsByRegex
             EditorGUI.indentLevel = 0;
         }
 
+        // 置換ルールとボーンマッピングを取得するヘルパー
+        private List<ReplacementRule> GetReplacementRules()
+        {
+            return settings?.replacementRules ?? ComponentCopier.replacementRules ?? new List<ReplacementRule>();
+        }
+
+        // ソース側のボーンマッピングを取得（copyTreeのGameObjectから再計算）
+        private Dictionary<string, HumanBodyBones> _srcBoneMappingCache = null;
+        private Dictionary<string, HumanBodyBones> GetSrcBoneMapping()
+        {
+            // まずComponentCopierのマッピングを試す
+            if (ComponentCopier.srcBoneMapping != null && ComponentCopier.srcBoneMapping.Count > 0)
+            {
+                return ComponentCopier.srcBoneMapping;
+            }
+
+            // ComponentCopierにない場合はcopyTreeから再計算
+            if (_srcBoneMappingCache == null && copyTree?.gameObject != null)
+            {
+                var animator = copyTree.gameObject.GetComponent<Animator>();
+                _srcBoneMappingCache = NameMatcher.GetBoneMapping(animator);
+            }
+            return _srcBoneMappingCache;
+        }
+
+        // デスティネーション側のボーンマッピングを取得（activeObjectから再計算）
+        private Dictionary<string, HumanBodyBones> _dstBoneMappingCache = null;
+        private Dictionary<string, HumanBodyBones> GetDstBoneMapping()
+        {
+            // まずComponentCopierのマッピングを試す
+            if (ComponentCopier.dstBoneMapping != null && ComponentCopier.dstBoneMapping.Count > 0)
+            {
+                return ComponentCopier.dstBoneMapping;
+            }
+
+            // ComponentCopierにない場合はactiveObjectから再計算
+            if (_dstBoneMappingCache == null && activeObject != null)
+            {
+                var animator = activeObject.GetComponent<Animator>();
+                _dstBoneMappingCache = NameMatcher.GetBoneMapping(animator);
+            }
+            return _dstBoneMappingCache;
+        }
+
+        // 置換ルールを考慮した名前マッチング
+        private bool NamesMatchWithRules(string srcName, string dstName)
+        {
+            return NameMatcher.NamesMatch(srcName, dstName, GetReplacementRules(), GetSrcBoneMapping(), GetDstBoneMapping());
+        }
+
+        // 置換ルールを考慮した子オブジェクト検索
+        private bool TryFindMatchingChild(Dictionary<string, Transform> childDic, string srcName, out Transform matchedChild)
+        {
+            // まず完全一致を試す
+            if (childDic.TryGetValue(srcName, out matchedChild))
+            {
+                return true;
+            }
+
+            // 置換ルールを使用してマッチを検索
+            if (NameMatcher.TryFindMatchingName(childDic, srcName, GetReplacementRules(), out string matchedName, GetSrcBoneMapping(), GetDstBoneMapping()))
+            {
+                matchedChild = childDic[matchedName];
+                return true;
+            }
+
+            matchedChild = null;
+            return false;
+        }
+
         private void DrawDestinationTree(GameObject go, TreeItem sourceItem, int depth = 0)
         {
-            if (sourceItem != null && go.name != sourceItem.name && depth > 0) return;
+            // 置換ルールを考慮した名前マッチング
+            if (sourceItem != null && !NamesMatchWithRules(sourceItem.name, go.name) && depth > 0) return;
 
             EditorGUI.indentLevel = depth;
 
@@ -336,9 +407,10 @@ namespace CopyComponentsByRegex
             {
                 foreach (var sourceChild in sourceItem.children)
                 {
-                    if (childDic.ContainsKey(sourceChild.name))
+                    // 置換ルールを考慮した子オブジェクト検索
+                    if (TryFindMatchingChild(childDic, sourceChild.name, out var matchedChild))
                     {
-                        DrawDestinationTree(childDic[sourceChild.name].gameObject, sourceChild, depth + 1);
+                        DrawDestinationTree(matchedChild.gameObject, sourceChild, depth + 1);
                     }
                     else
                     {
