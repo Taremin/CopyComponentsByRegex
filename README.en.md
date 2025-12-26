@@ -111,10 +111,16 @@ Unity.exe -runTests -batchmode -projectPath <project path> -testPlatform EditMod
 - **IntegrationTests**: Complex hierarchy integration tests
   - GetChildren, CopyWalkdown, MergeWalkdown core functionality
   - Regex matching, recursive hierarchy processing
+  - HumanoidBone replacement rule matching (e.g., hips→siri bone mapping)
 - **NameMatcherTests**: Name matching functionality
   - Regex rule name transformations
   - HumanoidBone dynamic mapping
   - Child object search with replacement rules
+- **ModificationReportPopupTests**: Modification report display tests
+  - Replacement rule application in MergeWalkdown
+  - Object search with HumanoidBone rules
+- **BugReportExporterTests**: Bug report export tests
+  - Hierarchy structure JSON output
 - **PathUtilityTests**: Path utility functionality
   - Relative/absolute path retrieval
   - Package path resolution

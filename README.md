@@ -114,13 +114,22 @@ Unity.exe -runTests -batchmode -projectPath <プロジェクトパス> -testPlat
 - **IntegrationTests**: 複雑なオブジェクト階層を使用した統合テスト
   - GetChildren、CopyWalkdown、MergeWalkdown などの主要機能
   - 正規表現マッチング、階層構造の再帰処理
+  - HumanoidBone置換ルールによるマッチング（hips→siri等の異名ボーン対応）
 - **NameMatcherTests**: 名前マッチング機能のテスト
   - 正規表現ルールによる名前変換
   - HumanoidBone動的マッピングによるマッチング
   - 置換ルールを使用した子オブジェクト検索
+- **ModificationReportPopupTests**: 変更レポート表示機能のテスト
+  - MergeWalkdownでの置換ルール適用
+  - HumanoidBoneルールを使用したオブジェクト検索
+- **BugReportExporterTests**: バグレポートエクスポート機能のテスト
+  - 階層構造のJSON出力
 - **PathUtilityTests**: パスユーティリティ機能のテスト
   - 相対パス・絶対パスの取得
   - パッケージパスの解決
+- **LocalizationTests**: 国際化機能のテスト
+  - 言語切り替え
+  - 言語間のキー整合性
 
 
 
