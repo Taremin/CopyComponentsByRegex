@@ -37,7 +37,7 @@ namespace CopyComponentsByRegex
             var data = new BugReportData
             {
                 version = "1.0.0",
-                editorVersion = GetEditorVersion(),
+                editorVersion = PathUtility.GetPackageVersion(),
                 timestamp = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:sszzz"),
                 includeProperties = includeProperties
             };
@@ -394,42 +394,5 @@ namespace CopyComponentsByRegex
             CopyToClipboard(data);
         }
 
-        /// <summary>
-        /// package.jsonからエディタ拡張のバージョンを取得
-        /// </summary>
-        private static string GetEditorVersion()
-        {
-            try
-            {
-                // PathUtilityを使用してパッケージのアセットパスを取得
-                string packageAssetPath = PathUtility.GetPackageAssetPath();
-                string[] guids = AssetDatabase.FindAssets("package t:TextAsset", new[] { packageAssetPath });
-                foreach (string guid in guids)
-                {
-                    string path = AssetDatabase.GUIDToAssetPath(guid);
-                    if (path.EndsWith("package.json"))
-                    {
-                        string json = File.ReadAllText(path);
-                        // 簡易的にバージョンを抽出
-                        int versionIndex = json.IndexOf("\"version\"");
-                        if (versionIndex >= 0)
-                        {
-                            int colonIndex = json.IndexOf(":", versionIndex);
-                            int firstQuote = json.IndexOf("\"", colonIndex + 1);
-                            int secondQuote = json.IndexOf("\"", firstQuote + 1);
-                            if (firstQuote >= 0 && secondQuote > firstQuote)
-                            {
-                                return json.Substring(firstQuote + 1, secondQuote - firstQuote - 1);
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                // エラー時は不明を返す
-            }
-            return "unknown";
-        }
     }
 }
