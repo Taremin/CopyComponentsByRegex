@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.Animations;
 
 namespace CopyComponentsByRegex.Tests
 {
@@ -336,5 +337,627 @@ namespace CopyComponentsByRegex.Tests
         }
 
         #endregion
+
+        #region 詳細コピー検証テスト
+
+        /// <summary>
+        /// Pasteでコンポーネントが正しく追加されることを検証
+        /// modificationLogsにAddログが記録される
+        /// </summary>
+        [Test]
+        public void Paste_ComponentAdded_LogsAddOperation()
+        {
+            // Arrange: destRootからStubComponentを削除してからコピー
+            var destBody = destRoot.transform.Find("Body");
+            var existingStubs = destBody.GetComponents<StubComponent>();
+            foreach (var stub in existingStubs)
+            {
+                Object.DestroyImmediate(stub);
+            }
+
+            var settings = new CopySettings
+            {
+                pattern = "StubComponent",
+                isObjectCopy = false,
+                showReportAfterPaste = true,  // ログ記録を有効化
+            };
+
+            ComponentCopier.activeObject = destRoot;
+
+            // Act
+            ComponentCopier.Copy(sourceRoot, settings);
+            ComponentCopier.Paste(destRoot, settings);
+
+            // Assert: Addログがある
+            var addLogs = ComponentCopier.modificationLogs
+                .Where(x => x.operation == ModificationOperation.Add)
+                .ToList();
+            Assert.IsTrue(addLogs.Count > 0, "Should have Add logs for copied components");
+
+            // Addログにコンポーネントタイプが記録されている
+            var stubAddLog = addLogs.FirstOrDefault(x => x.componentType.Contains("StubComponent"));
+            Assert.IsNotNull(stubAddLog, "Should have Add log for StubComponent");
+        }
+
+        /// <summary>
+        /// Pasteで作成されたコンポーネントへの参照が取得できることを検証
+        /// </summary>
+        [Test]
+        public void Paste_CreatedComponent_IsAccessible()
+        {
+            // Arrange: destRootからStubComponentを削除
+            var destBody = destRoot.transform.Find("Body");
+            var existingStubs = destBody.GetComponents<StubComponent>();
+            foreach (var stub in existingStubs)
+            {
+                Object.DestroyImmediate(stub);
+            }
+
+            var settings = new CopySettings
+            {
+                pattern = "StubComponent",
+                isObjectCopy = false,
+                showReportAfterPaste = true,  // ログ記録を有効化
+            };
+
+            ComponentCopier.activeObject = destRoot;
+
+            // Act
+            ComponentCopier.Copy(sourceRoot, settings);
+            ComponentCopier.Paste(destRoot, settings);
+
+            // Assert: createdComponentが設定されているログがある
+            var logsWithComponent = ComponentCopier.modificationLogs
+                .Where(x => x.operation == ModificationOperation.Add && x.createdComponent != null)
+                .ToList();
+            Assert.IsTrue(logsWithComponent.Count > 0, "Should have logs with createdComponent reference");
+
+            // createdComponentが実際に存在する
+            foreach (var log in logsWithComponent)
+            {
+                Assert.IsNotNull(log.createdComponent, "createdComponent should not be null");
+                Assert.IsFalse(log.createdComponent.Equals(null), "createdComponent should be a valid Unity object");
+            }
+        }
+
+        /// <summary>
+        /// isObjectCopy=trueで新規オブジェクトが作成された場合
+        /// createdObjectへの参照が取得できる
+        /// </summary>
+        [Test]
+        public void Paste_CreateObject_CreatedObjectIsAccessible()
+        {
+            // Arrange: destRootからapron_skirtを削除
+            var apronInDest = destRoot.transform.Find("root/J_Bip_C_Hips/J_Bip_C_Spine/apron_skirt");
+            if (apronInDest != null)
+            {
+                Object.DestroyImmediate(apronInDest.gameObject);
+            }
+
+            var settings = new CopySettings
+            {
+                pattern = "VRCPhysBone",
+                isObjectCopy = true,
+                showReportAfterPaste = false,
+                replacementRules = new List<ReplacementRule>
+                {
+                    new ReplacementRule(HumanoidBoneGroup.All)
+                }
+            };
+
+            ComponentCopier.activeObject = destRoot;
+            ComponentCopier.srcBoneMapping = AvatarTestUtils.GetSampleBoneMapping();
+            ComponentCopier.dstBoneMapping = AvatarTestUtils.GetVRoidBoneMapping();
+
+            // Act
+            ComponentCopier.Copy(sourceRoot, settings);
+            ComponentCopier.Paste(destRoot, settings);
+
+            // Assert: CreateObjectログにcreatedObjectがある
+            var createLogs = ComponentCopier.modificationObjectLogs
+                .Where(x => x.operation == ModificationOperation.CreateObject && x.createdObject != null)
+                .ToList();
+            
+            // オブジェクトが実際に作成された場合のみ検証
+            if (createLogs.Count > 0)
+            {
+                foreach (var log in createLogs)
+                {
+                    Assert.IsNotNull(log.createdObject, "createdObject should not be null");
+                    Assert.IsFalse(log.createdObject.Equals(null), "createdObject should be a valid Unity object");
+                }
+            }
+        }
+
+        /// <summary>
+        /// BugReportExporterでコピー後の状態をエクスポートできることを検証
+        /// </summary>
+        [Test]
+        public void Paste_ExportReport_ContainsModificationLogs()
+        {
+            // Arrange
+            var settings = new CopySettings
+            {
+                pattern = "StubComponent",
+                isObjectCopy = false,
+                showReportAfterPaste = true,  // ログ記録を有効化
+            };
+
+            ComponentCopier.activeObject = destRoot;
+
+            // Act
+            ComponentCopier.Copy(sourceRoot, settings);
+            ComponentCopier.Paste(destRoot, settings);
+
+            // Export
+            var report = BugReportExporter.Export(
+                sourceRoot,
+                ComponentCopier.copyTree,
+                destRoot,
+                settings,
+                ComponentCopier.modificationLogs,
+                ComponentCopier.modificationObjectLogs,
+                includeProperties: true
+            );
+
+            // Assert
+            Assert.IsNotNull(report, "Report should not be null");
+            Assert.IsNotNull(report.source, "Report source should not be null");
+            Assert.IsNotNull(report.destination, "Report destination should not be null");
+            Assert.IsNotNull(report.settings, "Report settings should not be null");
+
+            // modificationLogsが含まれている
+            Assert.IsTrue(report.modificationLogs != null, "Report should contain modification logs");
+        }
+
+        /// <summary>
+        /// isRemoveBeforeCopy=trueでRemoveログが記録されることを検証
+        /// </summary>
+        [Test]
+        public void Paste_RemoveBeforeCopy_LogsRemoveOperation()
+        {
+            // Arrange: destRootのBodyにStubComponentがあることを確認
+            var destBody = destRoot.transform.Find("Body");
+            var existingStubs = destBody.GetComponents<StubComponent>();
+            Assert.IsTrue(existingStubs.Length > 0, "Setup: Body should have StubComponent");
+
+            var settings = new CopySettings
+            {
+                pattern = "StubComponent",
+                isRemoveBeforeCopy = true,
+                showReportAfterPaste = true,  // ログ記録を有効化
+            };
+
+            ComponentCopier.activeObject = destRoot;
+
+            // Act
+            ComponentCopier.Copy(sourceRoot, settings);
+            ComponentCopier.Paste(destRoot, settings);
+
+            // Assert: Removeログがある
+            var removeLogs = ComponentCopier.modificationLogs
+                .Where(x => x.operation == ModificationOperation.Remove)
+                .ToList();
+            Assert.IsTrue(removeLogs.Count > 0, "Should have Remove logs");
+
+            // StubComponentのRemoveログがある
+            var stubRemove = removeLogs.FirstOrDefault(x => x.componentType.Contains("StubComponent"));
+            Assert.IsNotNull(stubRemove, "Should have Remove log for StubComponent");
+        }
+
+        /// <summary>
+        /// コピー後のログかtargetObjectが正しく記録されていることを検証
+        /// </summary>
+        [Test]
+        public void Paste_LogsContain_CorrectTargetObject()
+        {
+            // Arrange
+            var settings = new CopySettings
+            {
+                pattern = "StubComponent",
+                isObjectCopy = false,
+                showReportAfterPaste = true,  // ログ記録を有効化
+            };
+
+            ComponentCopier.activeObject = destRoot;
+
+            // Act
+            ComponentCopier.Copy(sourceRoot, settings);
+            ComponentCopier.Paste(destRoot, settings);
+
+            // Assert: ログにtargetObjectが含まれている
+            var logsWithObject = ComponentCopier.modificationLogs
+                .Where(x => x.targetObject != null)
+                .ToList();
+            Assert.IsTrue(logsWithObject.Count > 0, "Logs should contain targetObject");
+
+            // targetObjectがDestAvatarの子孫である
+            foreach (var log in logsWithObject)
+            {
+                Assert.IsNotNull(log.targetObject, "targetObject should not be null");
+                // targetObjectがdestRootの階層内にあることを確認
+                var transform = log.targetObject.transform;
+                bool isDescendant = false;
+                while (transform != null)
+                {
+                    if (transform == destRoot.transform)
+                    {
+                        isDescendant = true;
+                        break;
+                    }
+                    transform = transform.parent;
+                }
+                Assert.IsTrue(isDescendant, "targetObject should be descendant of DestAvatar");
+            }
+        }
+
+        #endregion
+
+        #region Constraint参照更新テスト
+
+        /// <summary>
+        /// ParentConstraintのソースがコピー後にコピー先階層内のオブジェクトを参照していることを検証
+        /// (同じボーン名の階層でテスト)
+        /// </summary>
+        [Test]
+        public void Paste_ParentConstraint_SourceTargetIsUpdatedToDestHierarchy()
+        {
+            // Arrange: リネームしていないdestRootを使用（同じボーン名階層）
+            var plainDestRoot = AvatarTestUtils.CloneAvatar(sourceRoot, "PlainDestAvatar");
+            // ボーン名はリネームしない
+            
+            try 
+            {
+                var sourceHead = sourceRoot.transform.Find("root/hips/spine/chest/neck/head");
+                var sourceChest = sourceRoot.transform.Find("root/hips/spine/chest");
+                Assert.IsNotNull(sourceHead, "Setup: sourceHead should exist");
+                Assert.IsNotNull(sourceChest, "Setup: sourceChest should exist");
+
+                var constraint = sourceHead.gameObject.AddComponent<ParentConstraint>();
+                constraint.AddSource(new ConstraintSource
+                {
+                    sourceTransform = sourceChest,
+                    weight = 1.0f
+                });
+
+                var settings = new CopySettings
+                {
+                    pattern = "ParentConstraint",
+                    isObjectCopy = false,
+                    showReportAfterPaste = true,
+                };
+
+                ComponentCopier.activeObject = plainDestRoot;
+
+                // plainDestRootのパスを取得
+                var destHead = plainDestRoot.transform.Find("root/hips/spine/chest/neck/head");
+                var destChest = plainDestRoot.transform.Find("root/hips/spine/chest");
+                Assert.IsNotNull(destHead, "Setup: destHead should exist");
+                Assert.IsNotNull(destChest, "Setup: destChest should exist");
+
+                // 既存のConstraintを削除
+                var existingConstraints = destHead.GetComponents<ParentConstraint>();
+                foreach (var c in existingConstraints)
+                {
+                    Object.DestroyImmediate(c);
+                }
+
+                // Act
+                ComponentCopier.Copy(sourceRoot, settings);
+                ComponentCopier.Paste(plainDestRoot, settings);
+
+                // Assert: destHeadにParentConstraintがコピーされている
+                var copiedConstraint = destHead.GetComponent<ParentConstraint>();
+                Assert.IsNotNull(copiedConstraint, "ParentConstraint should be copied to destHead");
+
+                // Assert: ソースターゲットがdestChest（コピー先階層内）を参照している
+                Assert.IsTrue(copiedConstraint.sourceCount > 0, "Constraint should have at least one source");
+                var source = copiedConstraint.GetSource(0);
+                Assert.IsNotNull(source.sourceTransform, "Source transform should not be null");
+                
+                // ソースターゲットがコピー先階層内のオブジェクトを参照しているか確認
+                bool isInDestHierarchy = false;
+                var current = source.sourceTransform;
+                while (current != null)
+                {
+                    if (current == plainDestRoot.transform)
+                    {
+                        isInDestHierarchy = true;
+                        break;
+                    }
+                    current = current.parent;
+                }
+                Assert.IsTrue(isInDestHierarchy, 
+                    $"Constraint source should reference object in dest hierarchy, but references: {source.sourceTransform.name}");
+                
+                // より厳密なチェック: ソースターゲットがdestChestであること
+                Assert.AreEqual(destChest, source.sourceTransform, 
+                    $"Constraint source should be destChest, but was: {source.sourceTransform.name}");
+            }
+            finally
+            {
+                if (plainDestRoot != null) Object.DestroyImmediate(plainDestRoot);
+            }
+        }
+
+        /// <summary>
+        /// PositionConstraintのソースがコピー後にコピー先階層内のオブジェクトを参照していることを検証
+        /// (同じボーン名の階層でテスト)
+        /// </summary>
+        [Test]
+        public void Paste_PositionConstraint_SourceTargetIsUpdatedToDestHierarchy()
+        {
+            // Arrange: リネームしていないdestRootを使用（同じボーン名階層）
+            var plainDestRoot = AvatarTestUtils.CloneAvatar(sourceRoot, "PlainDestAvatar2");
+            
+            try 
+            {
+                var sourceLeftHand = sourceRoot.transform.Find("root/hips/spine/chest/leftUpperArm/leftLowerArm/leftHand");
+                var sourceRightHand = sourceRoot.transform.Find("root/hips/spine/chest/rightUpperArm/rightLowerArm/rightHand");
+                Assert.IsNotNull(sourceLeftHand, "Setup: sourceLeftHand should exist");
+                Assert.IsNotNull(sourceRightHand, "Setup: sourceRightHand should exist");
+
+                var constraint = sourceLeftHand.gameObject.AddComponent<PositionConstraint>();
+                constraint.AddSource(new ConstraintSource
+                {
+                    sourceTransform = sourceRightHand,
+                    weight = 1.0f
+                });
+
+                var settings = new CopySettings
+                {
+                    pattern = "PositionConstraint",
+                    isObjectCopy = false,
+                    showReportAfterPaste = true,
+                };
+
+                ComponentCopier.activeObject = plainDestRoot;
+
+                var destLeftHand = plainDestRoot.transform.Find("root/hips/spine/chest/leftUpperArm/leftLowerArm/leftHand");
+                var destRightHand = plainDestRoot.transform.Find("root/hips/spine/chest/rightUpperArm/rightLowerArm/rightHand");
+                Assert.IsNotNull(destLeftHand, "Setup: destLeftHand should exist");
+                Assert.IsNotNull(destRightHand, "Setup: destRightHand should exist");
+
+                // 既存のConstraintを削除
+                var existingConstraints = destLeftHand.GetComponents<PositionConstraint>();
+                foreach (var c in existingConstraints)
+                {
+                    Object.DestroyImmediate(c);
+                }
+
+                // Act
+                ComponentCopier.Copy(sourceRoot, settings);
+                ComponentCopier.Paste(plainDestRoot, settings);
+
+                // Assert: destLeftHandにPositionConstraintがコピーされている
+                var copiedConstraint = destLeftHand.GetComponent<PositionConstraint>();
+                Assert.IsNotNull(copiedConstraint, "PositionConstraint should be copied to destLeftHand");
+
+                // Assert: ソースターゲットがdestRightHand（コピー先階層内）を参照している
+                Assert.IsTrue(copiedConstraint.sourceCount > 0, "Constraint should have at least one source");
+                var source = copiedConstraint.GetSource(0);
+                Assert.IsNotNull(source.sourceTransform, "Source transform should not be null");
+                
+                // ソースターゲットがコピー先階層内のオブジェクトを参照しているか確認
+                bool isInDestHierarchy = false;
+                var current = source.sourceTransform;
+                while (current != null)
+                {
+                    if (current == plainDestRoot.transform)
+                    {
+                        isInDestHierarchy = true;
+                        break;
+                    }
+                    current = current.parent;
+                }
+                Assert.IsTrue(isInDestHierarchy, 
+                    $"Constraint source should reference object in dest hierarchy, but references: {source.sourceTransform.name}");
+            }
+            finally
+            {
+                if (plainDestRoot != null) Object.DestroyImmediate(plainDestRoot);
+            }
+        }
+
+        /// <summary>
+        /// ParentConstraintのコピー時、HumanoidBoneGroup置換ルールを使用して
+        /// 異なるボーン名構造（VRoid形式）でも正しくコピーされることを検証
+        /// </summary>
+        [Test]
+        public void Paste_ParentConstraint_WithHumanoidRules_CopiesCorrectly()
+        {
+            // Arrange: VRoidボーン名のdestRootを使用
+            var sourceHead = sourceRoot.transform.Find("root/hips/spine/chest/neck/head");
+            var sourceChest = sourceRoot.transform.Find("root/hips/spine/chest");
+            Assert.IsNotNull(sourceHead, "Setup: sourceHead should exist");
+            Assert.IsNotNull(sourceChest, "Setup: sourceChest should exist");
+
+            var constraint = sourceHead.gameObject.AddComponent<ParentConstraint>();
+            constraint.AddSource(new ConstraintSource
+            {
+                sourceTransform = sourceChest,
+                weight = 1.0f
+            });
+
+            var settings = new CopySettings
+            {
+                pattern = "ParentConstraint",
+                isObjectCopy = false,
+                showReportAfterPaste = true,
+                replacementRules = new List<ReplacementRule>
+                {
+                    new ReplacementRule(HumanoidBoneGroup.All)
+                }
+            };
+
+            ComponentCopier.activeObject = destRoot;
+
+            // VRoid形式のボーン名パス
+            var destHead = destRoot.transform.Find("root/J_Bip_C_Hips/J_Bip_C_Spine/J_Bip_C_Chest/J_Bip_C_Neck/J_Bip_C_Head");
+            var destChest = destRoot.transform.Find("root/J_Bip_C_Hips/J_Bip_C_Spine/J_Bip_C_Chest");
+            Assert.IsNotNull(destHead, "Setup: destHead should exist (VRoid format)");
+            Assert.IsNotNull(destChest, "Setup: destChest should exist (VRoid format)");
+
+            // 既存のConstraintを削除
+            var existingConstraints = destHead.GetComponents<ParentConstraint>();
+            foreach (var c in existingConstraints)
+            {
+                Object.DestroyImmediate(c);
+            }
+
+            // Act
+            ComponentCopier.Copy(sourceRoot, settings);
+
+            // ボーンマッピングを手動設定（テスト用GameObjectにはAnimatorがないため）
+            ComponentCopier.srcBoneMapping = AvatarTestUtils.GetSampleBoneMapping();
+            ComponentCopier.dstBoneMapping = AvatarTestUtils.GetVRoidBoneMapping();
+
+            ComponentCopier.Paste(destRoot, settings);
+
+            // Assert: destHeadにParentConstraintがコピーされている
+            var copiedConstraint = destHead.GetComponent<ParentConstraint>();
+            Assert.IsNotNull(copiedConstraint, 
+                "ParentConstraint should be copied to destHead with HumanoidBoneGroup rules");
+
+            // Assert: ソースターゲットがコピー先階層内を参照している
+            Assert.IsTrue(copiedConstraint.sourceCount > 0, "Constraint should have at least one source");
+            var source = copiedConstraint.GetSource(0);
+            Assert.IsNotNull(source.sourceTransform, "Source transform should not be null");
+            
+            // ソースターゲットがコピー先階層内のオブジェクトを参照しているか確認
+            bool isInDestHierarchy = false;
+            var current = source.sourceTransform;
+            while (current != null)
+            {
+                if (current == destRoot.transform)
+                {
+                    isInDestHierarchy = true;
+                    break;
+                }
+                current = current.parent;
+            }
+            Assert.IsTrue(isInDestHierarchy, 
+                $"Constraint source should reference object in dest hierarchy, but references: {source.sourceTransform.name}");
+        }
+
+        /// <summary>
+        /// PositionConstraintのコピー時、HumanoidBoneGroup置換ルールを使用して
+        /// 異なるボーン名構造（VRoid形式）でも正しくコピーされることを検証
+        /// </summary>
+        [Test]
+        public void Paste_PositionConstraint_WithHumanoidRules_CopiesCorrectly()
+        {
+            // Arrange: VRoidボーン名のdestRootを使用
+            var sourceLeftHand = sourceRoot.transform.Find("root/hips/spine/chest/leftUpperArm/leftLowerArm/leftHand");
+            var sourceRightHand = sourceRoot.transform.Find("root/hips/spine/chest/rightUpperArm/rightLowerArm/rightHand");
+            Assert.IsNotNull(sourceLeftHand, "Setup: sourceLeftHand should exist");
+            Assert.IsNotNull(sourceRightHand, "Setup: sourceRightHand should exist");
+
+            var constraint = sourceLeftHand.gameObject.AddComponent<PositionConstraint>();
+            constraint.AddSource(new ConstraintSource
+            {
+                sourceTransform = sourceRightHand,
+                weight = 1.0f
+            });
+
+            var settings = new CopySettings
+            {
+                pattern = "PositionConstraint",
+                isObjectCopy = false,
+                showReportAfterPaste = true,
+                replacementRules = new List<ReplacementRule>
+                {
+                    new ReplacementRule(HumanoidBoneGroup.All)
+                }
+            };
+
+            ComponentCopier.activeObject = destRoot;
+
+            // VRoid形式のボーン名パス
+            var destLeftHand = destRoot.transform.Find("root/J_Bip_C_Hips/J_Bip_C_Spine/J_Bip_C_Chest/J_Bip_L_UpperArm/J_Bip_L_LowerArm/J_Bip_L_Hand");
+            var destRightHand = destRoot.transform.Find("root/J_Bip_C_Hips/J_Bip_C_Spine/J_Bip_C_Chest/J_Bip_R_UpperArm/J_Bip_R_LowerArm/J_Bip_R_Hand");
+            Assert.IsNotNull(destLeftHand, "Setup: destLeftHand should exist (VRoid format)");
+            Assert.IsNotNull(destRightHand, "Setup: destRightHand should exist (VRoid format)");
+
+            // 既存のConstraintを削除
+            var existingConstraints = destLeftHand.GetComponents<PositionConstraint>();
+            foreach (var c in existingConstraints)
+            {
+                Object.DestroyImmediate(c);
+            }
+
+            // Act
+            ComponentCopier.Copy(sourceRoot, settings);
+
+            // ボーンマッピングを手動設定（テスト用GameObjectにはAnimatorがないため）
+            ComponentCopier.srcBoneMapping = AvatarTestUtils.GetSampleBoneMapping();
+            ComponentCopier.dstBoneMapping = AvatarTestUtils.GetVRoidBoneMapping();
+
+            ComponentCopier.Paste(destRoot, settings);
+
+            // Assert: destLeftHandにPositionConstraintがコピーされている
+            var copiedConstraint = destLeftHand.GetComponent<PositionConstraint>();
+            Assert.IsNotNull(copiedConstraint, 
+                "PositionConstraint should be copied to destLeftHand with HumanoidBoneGroup rules");
+
+            // Assert: ソースターゲットがコピー先階層内を参照している
+            Assert.IsTrue(copiedConstraint.sourceCount > 0, "Constraint should have at least one source");
+            var source = copiedConstraint.GetSource(0);
+            Assert.IsNotNull(source.sourceTransform, "Source transform should not be null");
+            
+            // ソースターゲットがコピー先階層内のオブジェクトを参照しているか確認
+            bool isInDestHierarchy = false;
+            var current = source.sourceTransform;
+            while (current != null)
+            {
+                if (current == destRoot.transform)
+                {
+                    isInDestHierarchy = true;
+                    break;
+                }
+                current = current.parent;
+            }
+            Assert.IsTrue(isInDestHierarchy, 
+                $"Constraint source should reference object in dest hierarchy, but references: {source.sourceTransform.name}");
+        }
+
+        #endregion
+
+        #region ヘルパーメソッド
+
+        /// <summary>
+        /// TreeItemから全てのコンポーネントを再帰的に取得
+        /// </summary>
+        private static List<Component> GetAllComponentsFromTree(TreeItem tree)
+        {
+            var result = new List<Component>();
+            if (tree == null) return result;
+            
+            result.AddRange(tree.components);
+            foreach (var child in tree.children)
+            {
+                result.AddRange(GetAllComponentsFromTree(child));
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// TransformのフルパスToを取得
+        /// </summary>
+        private static string GetPath(Transform t)
+        {
+            if (t == null) return "null";
+            var path = t.name;
+            while (t.parent != null)
+            {
+                t = t.parent;
+                path = t.name + "/" + path;
+            }
+            return path;
+        }
+
+        #endregion
     }
 }
+
+

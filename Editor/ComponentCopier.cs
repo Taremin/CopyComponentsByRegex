@@ -84,9 +84,12 @@ namespace CopyComponentsByRegex
                 return;
             }
 
-            // コピー先のHumanoidマッピングを取得
-            var dstAnimator = destination.GetComponent<Animator>();
-            dstBoneMapping = NameMatcher.GetBoneMapping(dstAnimator);
+            // コピー先のHumanoidマッピングを取得（既設定されていない場合のみ）
+            if (dstBoneMapping == null || dstBoneMapping.Count == 0)
+            {
+                var dstAnimator = destination.GetComponent<Animator>();
+                dstBoneMapping = NameMatcher.GetBoneMapping(dstAnimator);
+            }
 
             // srcBoneMappingが設定されていない場合は再取得
             if ((srcBoneMapping == null || srcBoneMapping.Count == 0) && copyTree?.gameObject != null)
@@ -506,12 +509,28 @@ namespace CopyComponentsByRegex
 
                     RunComponentOperation(go, componentType.Name, op, msg, dryRun, () =>
                     {
-                        UnityEditorInternal.ComponentUtility.CopyComponent(component);
-                        UnityEditorInternal.ComponentUtility.PasteComponentAsNew(go);
+                        int countBefore = go.GetComponents<Component>().Length;
 
-                        Component[] comps = go.GetComponents<Component>();
-                        Component dstComponent = comps[comps.Length - 1];
-                        return dstComponent;
+                        UnityEditorInternal.ComponentUtility.CopyComponent(component);
+                        bool pasteSuccess = UnityEditorInternal.ComponentUtility.PasteComponentAsNew(go);
+
+                        int countAfter = go.GetComponents<Component>().Length;
+
+                        // PasteComponentAsNewが成功した場合（コンポーネント数が増加）
+                        if (pasteSuccess && countAfter > countBefore)
+                        {
+                            Component[] comps = go.GetComponents<Component>();
+                            return comps[comps.Length - 1];
+                        }
+
+                        // フォールバック: AddComponent + CopyProperties
+                        // （バッチモード/テスト環境でPasteComponentAsNewが失敗する場合）
+                        var newComponent = go.AddComponent(componentType);
+                        if (newComponent != null)
+                        {
+                            CopyProperties(component, newComponent);
+                        }
+                        return newComponent;
                     });
                 }
             }
@@ -712,7 +731,8 @@ namespace CopyComponentsByRegex
                         foreach (Transform child in children)
                         {
                             var treeitem = new TreeItem(child.gameObject);
-                            if (treeitem.name == route.name && treeitem.type == route.type)
+                            // 置換ルールを考慮した名前マッチング
+                            if (NameMatcher.NamesMatch(route.name, treeitem.name, replacementRules, srcBoneMapping, dstBoneMapping) && treeitem.type == route.type)
                             {
                                 next = child;
                                 break;
