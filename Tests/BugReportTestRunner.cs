@@ -8,21 +8,6 @@ using UnityEngine;
 
 namespace CopyComponentsByRegex.Tests
 {
-    /// <summary>
-    /// 実行環境にないコンポーネントの代替として使用するスタブ
-    /// JSONから復元されたコンポーネント情報を保持する
-    /// </summary>
-    public class StubComponent : MonoBehaviour
-    {
-        /// <summary>元のコンポーネント型名（短縮形）</summary>
-        public string originalTypeName;
-
-        /// <summary>元のコンポーネント完全修飾型名</summary>
-        public string originalTypeFullName;
-
-        /// <summary>プロパティ情報（JSONから復元）</summary>
-        public List<PropertyData> properties = new List<PropertyData>();
-    }
 
     /// <summary>
     /// BugReportTestRunnerの実行結果
