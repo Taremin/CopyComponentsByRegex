@@ -404,12 +404,7 @@ namespace CopyComponentsByRegex
             bool srcIsHumanoid = ComponentCopier.srcBoneMapping != null && ComponentCopier.srcBoneMapping.Count > 0;
 
             // コピー先のHumanoid状態
-            bool dstIsHumanoid = false;
-            if (ComponentCopier.activeObject != null)
-            {
-                var dstAnimator = ComponentCopier.activeObject.GetComponent<Animator>();
-                dstIsHumanoid = dstAnimator != null && dstAnimator.isHuman;
-            }
+            bool dstIsHumanoid = NameMatcher.IsHumanoid(ComponentCopier.activeObject);
 
             // 警告が必要ない場合は何も表示しない
             if (srcIsHumanoid && dstIsHumanoid)
