@@ -957,6 +957,429 @@ namespace CopyComponentsByRegex.Tests
         }
 
         #endregion
+
+        #region DryRunとPasteのレポート一致テスト
+
+        /// <summary>
+        /// ルート名を除外した相対パスを取得するヘルパー
+        /// </summary>
+        private static string GetRelativePathWithoutRoot(string fullPath)
+        {
+            if (string.IsNullOrEmpty(fullPath)) return fullPath;
+            int idx = fullPath.IndexOf('/');
+            return idx >= 0 ? fullPath.Substring(idx + 1) : fullPath;
+        }
+
+        /// <summary>
+        /// targetObjectからルートを除外した相対パスを取得
+        /// </summary>
+        private static string GetRelativePath(GameObject targetObject, GameObject root)
+        {
+            if (targetObject == null) return "null";
+            if (targetObject == root) return ".";
+            
+            var path = targetObject.name;
+            var t = targetObject.transform.parent;
+            while (t != null && t.gameObject != root)
+            {
+                path = t.name + "/" + path;
+                t = t.parent;
+            }
+            return path;
+        }
+
+        /// <summary>
+        /// ModificationEntryから相対パスを取得（targetObjectがnullの場合はtargetPathを使用）
+        /// </summary>
+        private static string GetRelativePathFromEntry(ModificationEntry entry, GameObject root)
+        {
+            if (entry.targetObject != null)
+            {
+                return GetRelativePath(entry.targetObject, root);
+            }
+            else if (!string.IsNullOrEmpty(entry.targetPath))
+            {
+                // targetPathからルート名を除外（例: "DestForDryRun/root/..." → "root/..."）
+                return GetRelativePathWithoutRoot(entry.targetPath);
+            }
+            return "null";
+        }
+
+
+        /// <summary>
+        /// DryRunとPasteで同じ変更ログが生成されることを検証
+        /// (コンポーネント追加の場合)
+        /// </summary>
+        [Test]
+        public void DryRun_And_Paste_Generate_Same_Report_ForComponentAdd()
+        {
+            // Arrange: 2つの独立したdestRootを作成（同じ初期状態）
+            var destRootForDryRun = AvatarTestUtils.CloneAvatar(sourceRoot, "DestForDryRun");
+            var destRootForPaste = AvatarTestUtils.CloneAvatar(sourceRoot, "DestForPaste");
+            
+            // 両方からBody以下のStubComponentを削除
+            var bodyDryRun = destRootForDryRun.transform.Find("Body");
+            var bodyPaste = destRootForPaste.transform.Find("Body");
+            foreach (var stub in bodyDryRun.GetComponents<StubComponent>())
+                Object.DestroyImmediate(stub);
+            foreach (var stub in bodyPaste.GetComponents<StubComponent>())
+                Object.DestroyImmediate(stub);
+
+            var settings = new CopySettings
+            {
+                pattern = "StubComponent",
+                isObjectCopy = false,
+                showReportAfterPaste = true,
+            };
+
+            try
+            {
+                // Act: DryRun実行
+                ComponentCopier.activeObject = destRootForDryRun;
+                ComponentCopier.Copy(sourceRoot, settings);
+                ComponentCopier.DryRun(destRootForDryRun, settings);
+                var dryRunLogs = ComponentCopier.modificationLogs.Select(x => new
+                {
+                    x.operation,
+                    x.componentType,
+                    relativePath = GetRelativePath(x.targetObject, destRootForDryRun)
+                }).ToList();
+                var dryRunObjectLogs = ComponentCopier.modificationObjectLogs.Select(x => new
+                {
+                    x.operation,
+                    relativePath = GetRelativePathWithoutRoot(x.targetPath)
+                }).ToList();
+
+                // 状態リセット
+                ComponentCopier.modificationLogs.Clear();
+                ComponentCopier.modificationObjectLogs.Clear();
+                ComponentCopier.transforms = new List<Transform>();
+                ComponentCopier.components = new List<Component>();
+
+                // Act: Paste実行
+                ComponentCopier.activeObject = destRootForPaste;
+                ComponentCopier.Copy(sourceRoot, settings);
+                ComponentCopier.Paste(destRootForPaste, settings);
+                var pasteLogs = ComponentCopier.modificationLogs.Select(x => new
+                {
+                    x.operation,
+                    x.componentType,
+                    relativePath = GetRelativePath(x.targetObject, destRootForPaste)
+                }).ToList();
+                var pasteObjectLogs = ComponentCopier.modificationObjectLogs.Select(x => new
+                {
+                    x.operation,
+                    relativePath = GetRelativePathWithoutRoot(x.targetPath)
+                }).ToList();
+
+                // Assert: 同じ数のログ
+                Assert.AreEqual(dryRunLogs.Count, pasteLogs.Count,
+                    $"DryRun logs count ({dryRunLogs.Count}) should equal Paste logs count ({pasteLogs.Count})");
+
+                // Assert: 各ログの内容が一致
+                for (int i = 0; i < dryRunLogs.Count; i++)
+                {
+                    Assert.AreEqual(dryRunLogs[i].operation, pasteLogs[i].operation,
+                        $"Log[{i}] operation mismatch: DryRun={dryRunLogs[i].operation}, Paste={pasteLogs[i].operation}");
+                    Assert.AreEqual(dryRunLogs[i].componentType, pasteLogs[i].componentType,
+                        $"Log[{i}] componentType mismatch: DryRun={dryRunLogs[i].componentType}, Paste={pasteLogs[i].componentType}");
+                    Assert.AreEqual(dryRunLogs[i].relativePath, pasteLogs[i].relativePath,
+                        $"Log[{i}] relativePath mismatch: DryRun={dryRunLogs[i].relativePath}, Paste={pasteLogs[i].relativePath}");
+                }
+
+                // Assert: ObjectLogsも一致
+                Assert.AreEqual(dryRunObjectLogs.Count, pasteObjectLogs.Count,
+                    $"DryRun object logs count ({dryRunObjectLogs.Count}) should equal Paste object logs count ({pasteObjectLogs.Count})");
+            }
+            finally
+            {
+                Object.DestroyImmediate(destRootForDryRun);
+                Object.DestroyImmediate(destRootForPaste);
+            }
+        }
+
+        /// <summary>
+        /// DryRunとPasteで同じ変更ログが生成されることを検証
+        /// (apron_skirtを削除してオブジェクトコピーを有効にした場合)
+        /// </summary>
+        [Test]
+        public void DryRun_And_Paste_Generate_Same_Report_ForObjectCopyWithMissingApronSkirt()
+        {
+            // Arrange: 2つの独立したdestRootを作成（同じ初期状態）
+            var destRootForDryRun = AvatarTestUtils.CloneAvatar(sourceRoot, "DestForDryRun");
+            var destRootForPaste = AvatarTestUtils.CloneAvatar(sourceRoot, "DestForPaste");
+            
+            // 両方からapron_skirtを削除
+            var apronDryRun = destRootForDryRun.transform.Find("root/hips/spine/apron_skirt");
+            var apronPaste = destRootForPaste.transform.Find("root/hips/spine/apron_skirt");
+            if (apronDryRun != null) Object.DestroyImmediate(apronDryRun.gameObject);
+            if (apronPaste != null) Object.DestroyImmediate(apronPaste.gameObject);
+
+            var settings = new CopySettings
+            {
+                pattern = "StubComponent",
+                isObjectCopy = true,  // オブジェクトコピーを有効化
+                showReportAfterPaste = true,
+            };
+
+            try
+            {
+                // Act: DryRun実行
+                ComponentCopier.activeObject = destRootForDryRun;
+                ComponentCopier.Copy(sourceRoot, settings);
+                ComponentCopier.DryRun(destRootForDryRun, settings);
+                var dryRunLogs = ComponentCopier.modificationLogs.Select(x => new
+                {
+                    x.operation,
+                    x.componentType,
+                    relativePath = GetRelativePathFromEntry(x, destRootForDryRun)
+                }).OrderBy(x => x.relativePath).ThenBy(x => x.componentType).ThenBy(x => x.operation).ToList();
+                var dryRunObjectLogs = ComponentCopier.modificationObjectLogs.Select(x => new
+                {
+                    x.operation,
+                    relativePath = GetRelativePathWithoutRoot(x.targetPath)
+                }).OrderBy(x => x.relativePath).ToList();
+
+                // 状態リセット
+                ComponentCopier.modificationLogs.Clear();
+                ComponentCopier.modificationObjectLogs.Clear();
+                ComponentCopier.transforms = new List<Transform>();
+                ComponentCopier.components = new List<Component>();
+
+                // Act: Paste実行
+                ComponentCopier.activeObject = destRootForPaste;
+                ComponentCopier.Copy(sourceRoot, settings);
+                ComponentCopier.Paste(destRootForPaste, settings);
+                var pasteLogs = ComponentCopier.modificationLogs.Select(x => new
+                {
+                    x.operation,
+                    x.componentType,
+                    relativePath = GetRelativePathFromEntry(x, destRootForPaste)
+                }).OrderBy(x => x.relativePath).ThenBy(x => x.componentType).ThenBy(x => x.operation).ToList();
+                var pasteObjectLogs = ComponentCopier.modificationObjectLogs.Select(x => new
+                {
+                    x.operation,
+                    relativePath = GetRelativePathWithoutRoot(x.targetPath)
+                }).OrderBy(x => x.relativePath).ToList();
+
+                // Assert: 同じ数のログ
+                Assert.AreEqual(dryRunLogs.Count, pasteLogs.Count,
+                    $"DryRun logs count ({dryRunLogs.Count}) should equal Paste logs count ({pasteLogs.Count})");
+
+                // Assert: 各ログの内容が一致
+                for (int i = 0; i < dryRunLogs.Count; i++)
+                {
+                    Assert.AreEqual(dryRunLogs[i].operation, pasteLogs[i].operation,
+                        $"Log[{i}] operation mismatch: DryRun={dryRunLogs[i].operation}, Paste={pasteLogs[i].operation}");
+                    Assert.AreEqual(dryRunLogs[i].componentType, pasteLogs[i].componentType,
+                        $"Log[{i}] componentType mismatch: DryRun={dryRunLogs[i].componentType}, Paste={pasteLogs[i].componentType}");
+                    Assert.AreEqual(dryRunLogs[i].relativePath, pasteLogs[i].relativePath,
+                        $"Log[{i}] relativePath mismatch: DryRun={dryRunLogs[i].relativePath}, Paste={pasteLogs[i].relativePath}");
+                }
+
+                // Assert: ObjectLogsの数が一致
+                Assert.AreEqual(dryRunObjectLogs.Count, pasteObjectLogs.Count,
+                    $"DryRun object logs count ({dryRunObjectLogs.Count}) should equal Paste object logs count ({pasteObjectLogs.Count})");
+                
+                // Assert: ObjectLogsの内容が一致
+                for (int i = 0; i < dryRunObjectLogs.Count; i++)
+                {
+                    Assert.AreEqual(dryRunObjectLogs[i].operation, pasteObjectLogs[i].operation,
+                        $"ObjectLog[{i}] operation mismatch: DryRun={dryRunObjectLogs[i].operation}, Paste={pasteObjectLogs[i].operation}");
+                    Assert.AreEqual(dryRunObjectLogs[i].relativePath, pasteObjectLogs[i].relativePath,
+                        $"ObjectLog[{i}] relativePath mismatch: DryRun={dryRunObjectLogs[i].relativePath}, Paste={pasteObjectLogs[i].relativePath}");
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(destRootForDryRun);
+                Object.DestroyImmediate(destRootForPaste);
+            }
+        }
+
+        /// <summary>
+        /// DryRunとPasteで同じ変更ログが生成されることを検証
+        /// (コンポーネント削除+追加の場合)
+        /// </summary>
+        [Test]
+        public void DryRun_And_Paste_Generate_Same_Report_ForRemoveAndAdd()
+        {
+
+            // Arrange
+            var destRootForDryRun = AvatarTestUtils.CloneAvatar(sourceRoot, "DestForDryRun");
+            var destRootForPaste = AvatarTestUtils.CloneAvatar(sourceRoot, "DestForPaste");
+
+            var settings = new CopySettings
+            {
+                pattern = "StubComponent",
+                isRemoveBeforeCopy = true,
+                isObjectCopy = false,
+                showReportAfterPaste = true,
+            };
+
+            try
+            {
+                // Act: DryRun
+                ComponentCopier.activeObject = destRootForDryRun;
+                ComponentCopier.Copy(sourceRoot, settings);
+                ComponentCopier.DryRun(destRootForDryRun, settings);
+                
+                var dryRunRemoveLogs = ComponentCopier.modificationLogs
+                    .Where(x => x.operation == ModificationOperation.Remove)
+                    .Select(x => new { x.componentType, relativePath = GetRelativePath(x.targetObject, destRootForDryRun) })
+                    .OrderBy(x => x.relativePath)
+                    .ThenBy(x => x.componentType)
+                    .ToList();
+                var dryRunAddLogs = ComponentCopier.modificationLogs
+                    .Where(x => x.operation == ModificationOperation.Add)
+                    .Select(x => new { x.componentType, relativePath = GetRelativePath(x.targetObject, destRootForDryRun) })
+                    .OrderBy(x => x.relativePath)
+                    .ThenBy(x => x.componentType)
+                    .ToList();
+
+                // 状態リセット
+                ComponentCopier.modificationLogs.Clear();
+                ComponentCopier.modificationObjectLogs.Clear();
+                ComponentCopier.transforms = new List<Transform>();
+                ComponentCopier.components = new List<Component>();
+
+                // Act: Paste
+                ComponentCopier.activeObject = destRootForPaste;
+                ComponentCopier.Copy(sourceRoot, settings);
+                ComponentCopier.Paste(destRootForPaste, settings);
+                
+                var pasteRemoveLogs = ComponentCopier.modificationLogs
+                    .Where(x => x.operation == ModificationOperation.Remove)
+                    .Select(x => new { x.componentType, relativePath = GetRelativePath(x.targetObject, destRootForPaste) })
+                    .OrderBy(x => x.relativePath)
+                    .ThenBy(x => x.componentType)
+                    .ToList();
+                var pasteAddLogs = ComponentCopier.modificationLogs
+                    .Where(x => x.operation == ModificationOperation.Add)
+                    .Select(x => new { x.componentType, relativePath = GetRelativePath(x.targetObject, destRootForPaste) })
+                    .OrderBy(x => x.relativePath)
+                    .ThenBy(x => x.componentType)
+                    .ToList();
+
+                // Assert: Removeログ数が一致
+                Assert.AreEqual(dryRunRemoveLogs.Count, pasteRemoveLogs.Count,
+                    $"Remove logs count mismatch: DryRun={dryRunRemoveLogs.Count}, Paste={pasteRemoveLogs.Count}");
+
+                // Assert: Addログ数が一致
+                Assert.AreEqual(dryRunAddLogs.Count, pasteAddLogs.Count,
+                    $"Add logs count mismatch: DryRun={dryRunAddLogs.Count}, Paste={pasteAddLogs.Count}");
+
+                // Assert: Removeログの内容が一致
+                for (int i = 0; i < dryRunRemoveLogs.Count; i++)
+                {
+                    Assert.AreEqual(dryRunRemoveLogs[i].componentType, pasteRemoveLogs[i].componentType,
+                        $"Remove log[{i}] componentType mismatch");
+                    Assert.AreEqual(dryRunRemoveLogs[i].relativePath, pasteRemoveLogs[i].relativePath,
+                        $"Remove log[{i}] relativePath mismatch");
+                }
+
+                // Assert: Addログの内容が一致
+                for (int i = 0; i < dryRunAddLogs.Count; i++)
+                {
+                    Assert.AreEqual(dryRunAddLogs[i].componentType, pasteAddLogs[i].componentType,
+                        $"Add log[{i}] componentType mismatch");
+                    Assert.AreEqual(dryRunAddLogs[i].relativePath, pasteAddLogs[i].relativePath,
+                        $"Add log[{i}] relativePath mismatch");
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(destRootForDryRun);
+                Object.DestroyImmediate(destRootForPaste);
+            }
+        }
+
+        /// <summary>
+        /// DryRunとPasteで同じ変更ログが生成されることを検証
+        /// (オブジェクト作成の場合)
+        /// </summary>
+        [Test]
+        public void DryRun_And_Paste_Generate_Same_Report_ForObjectCreation()
+        {
+            // Arrange
+            var destRootForDryRun = AvatarTestUtils.CloneAvatar(sourceRoot, "DestForDryRun");
+            var destRootForPaste = AvatarTestUtils.CloneAvatar(sourceRoot, "DestForPaste");
+            
+            // HumanoidBoneのリネーム
+            AvatarTestUtils.RenameHumanoidBones(destRootForDryRun, AvatarTestUtils.GetVRoidBoneRenameMap());
+            AvatarTestUtils.RenameHumanoidBones(destRootForPaste, AvatarTestUtils.GetVRoidBoneRenameMap());
+            
+            // apron_skirtを削除
+            var apronDryRun = destRootForDryRun.transform.Find("root/J_Bip_C_Hips/J_Bip_C_Spine/apron_skirt");
+            var apronPaste = destRootForPaste.transform.Find("root/J_Bip_C_Hips/J_Bip_C_Spine/apron_skirt");
+            if (apronDryRun != null) Object.DestroyImmediate(apronDryRun.gameObject);
+            if (apronPaste != null) Object.DestroyImmediate(apronPaste.gameObject);
+
+            var settings = new CopySettings
+            {
+                pattern = "StubComponent",
+                isObjectCopy = true,
+                showReportAfterPaste = true,
+                replacementRules = new List<ReplacementRule>
+                {
+                    new ReplacementRule(HumanoidBoneGroup.All)
+                }
+            };
+
+            try
+            {
+                // ボーンマッピングのセットアップ
+                ComponentCopier.srcBoneMapping = AvatarTestUtils.GetSampleBoneMapping();
+                ComponentCopier.dstBoneMapping = AvatarTestUtils.GetVRoidBoneMapping();
+
+                // Act: DryRun
+                ComponentCopier.activeObject = destRootForDryRun;
+                ComponentCopier.Copy(sourceRoot, settings);
+                ComponentCopier.DryRun(destRootForDryRun, settings);
+                
+                var dryRunObjectLogs = ComponentCopier.modificationObjectLogs
+                    .Where(x => x.operation == ModificationOperation.CreateObject)
+                    .Select(x => GetRelativePathWithoutRoot(x.targetPath))
+                    .OrderBy(x => x)
+                    .ToList();
+
+                // 状態リセット
+                ComponentCopier.modificationLogs.Clear();
+                ComponentCopier.modificationObjectLogs.Clear();
+                ComponentCopier.transforms = new List<Transform>();
+                ComponentCopier.components = new List<Component>();
+                ComponentCopier.srcBoneMapping = AvatarTestUtils.GetSampleBoneMapping();
+                ComponentCopier.dstBoneMapping = AvatarTestUtils.GetVRoidBoneMapping();
+
+                // Act: Paste
+                ComponentCopier.activeObject = destRootForPaste;
+                ComponentCopier.Copy(sourceRoot, settings);
+                ComponentCopier.Paste(destRootForPaste, settings);
+                
+                var pasteObjectLogs = ComponentCopier.modificationObjectLogs
+                    .Where(x => x.operation == ModificationOperation.CreateObject)
+                    .Select(x => GetRelativePathWithoutRoot(x.targetPath))
+                    .OrderBy(x => x)
+                    .ToList();
+
+                // Assert: CreateObjectログが一致
+                Assert.AreEqual(dryRunObjectLogs.Count, pasteObjectLogs.Count,
+                    $"CreateObject logs count mismatch: DryRun={dryRunObjectLogs.Count}, Paste={pasteObjectLogs.Count}");
+
+                for (int i = 0; i < dryRunObjectLogs.Count; i++)
+                {
+                    Assert.AreEqual(dryRunObjectLogs[i], pasteObjectLogs[i],
+                        $"CreateObject log[{i}] path mismatch: DryRun={dryRunObjectLogs[i]}, Paste={pasteObjectLogs[i]}");
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(destRootForDryRun);
+                Object.DestroyImmediate(destRootForPaste);
+            }
+        }
+
+        #endregion
     }
 }
 

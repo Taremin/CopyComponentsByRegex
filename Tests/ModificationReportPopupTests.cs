@@ -225,7 +225,7 @@ namespace CopyComponentsByRegex.Tests
             hipsItem.children.Add(skirtItem);
 
             // Act: DryRunモードでMergeWalkdownを実行
-            ComponentCopier.MergeWalkdown(destinationRoot, ref tree, 0, true);
+            ComponentCopier.MergeWalkdown(destinationRoot, ref tree, 0);
 
             // Assert: modificationLogsにskirtへのAdd操作が記録されているか確認
             var addLogs = ComponentCopier.modificationLogs
@@ -280,7 +280,7 @@ namespace CopyComponentsByRegex.Tests
             hipsItem.children.Add(skirtItem);
 
             // Act: DryRunモードでMergeWalkdownを実行
-            ComponentCopier.MergeWalkdown(destinationRoot, ref tree, 0, true);
+            ComponentCopier.MergeWalkdown(destinationRoot, ref tree, 0);
 
             // Assert: 置換ルールがないので、hips != siri のためマージされない
             var addLogs = ComponentCopier.modificationLogs
@@ -517,7 +517,7 @@ namespace CopyComponentsByRegex.Tests
             hipsItem.children.Add(skirtItem);
 
             // Act: DryRunモードでMergeWalkdownを実行
-            ComponentCopier.MergeWalkdown(destinationRoot, ref tree, 0, true);
+            ComponentCopier.MergeWalkdown(destinationRoot, ref tree, 0);
 
             // Assert: modificationLogsにskirtへのAdd操作が記録されているか確認
             var addLogs = ComponentCopier.modificationLogs
@@ -583,7 +583,7 @@ namespace CopyComponentsByRegex.Tests
             hipsItem.children.Add(skirtItem);
 
             // Act: DryRunモードでMergeWalkdownを実行
-            ComponentCopier.MergeWalkdown(destinationRoot, ref tree, 0, true);
+            ComponentCopier.MergeWalkdown(destinationRoot, ref tree, 0);
 
             // Assert: ボーンマッピングがないので、hips != siri のためマージされない
             var addLogs = ComponentCopier.modificationLogs

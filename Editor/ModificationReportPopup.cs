@@ -417,29 +417,107 @@ namespace CopyComponentsByRegex
                         // この子オブジェクトはコピー元には存在するがコピー先には存在しない -> isObjectCopyがtrueの場合作成される
                         if (isObjectCopy)
                         {
-                            EditorGUI.indentLevel = depth + 1;
-                            var oldColor = GUI.color;
-                            GUI.color = Color.green;
-                            var newGoIcon = EditorGUIUtility.ObjectContent(null, typeof(GameObject)).image;
-                            var content = new GUIContent($"[+] {sourceChild.name} ({Localization.L("NewObject")})", newGoIcon);
-                            EditorGUILayout.LabelField(content, EditorStyles.label);
-                            GUI.color = oldColor;
-                            
-                            // Draw Link for new object
-                            if (Event.current.type == EventType.Repaint)
-                            {
-                                var dstRect = GetContentRect(GUILayoutUtility.GetLastRect(), content, EditorStyles.label);
-                                if (sourceRects.ContainsKey(sourceChild))
-                                {
-                                    DrawLink(sourceRects[sourceChild], dstRect);
-                                }
-                            }
+                            // 新しく作成されるオブジェクトとその子孫を再帰的に描画
+                            DrawNewObjectTree(sourceChild, depth + 1);
                         }
                     }
                 }
             }
 
             EditorGUI.indentLevel = 0;
+        }
+
+        /// <summary>
+        /// 新しく作成されるオブジェクトと、その子孫・コンポーネントをソースツリーを元に再帰的に描画
+        /// isObjectCopy時にコピー先に存在しないオブジェクトの描画に使用
+        /// </summary>
+        private void DrawNewObjectTree(TreeItem sourceItem, int depth)
+        {
+            EditorGUI.indentLevel = depth;
+            
+            var oldColor = GUI.color;
+            GUI.color = Color.green;
+            var newGoIcon = EditorGUIUtility.ObjectContent(null, typeof(GameObject)).image;
+            var content = new GUIContent($"[+] {sourceItem.name} ({Localization.L("NewObject")})", newGoIcon);
+            EditorGUILayout.LabelField(content, EditorStyles.label);
+            GUI.color = oldColor;
+            
+            // Draw Link for new object
+            if (Event.current.type == EventType.Repaint && sourceRects.ContainsKey(sourceItem))
+            {
+                var dstRect = GetContentRect(GUILayoutUtility.GetLastRect(), content, EditorStyles.label);
+                DrawLink(sourceRects[sourceItem], dstRect);
+            }
+
+            // 新しく作成されるオブジェクトに含まれるコンポーネントを描画
+            EditorGUI.indentLevel = depth + 1;
+            
+            // showAllComponentsがtrueの場合は、元オブジェクトの全コンポーネントを表示
+            // falseの場合はsourceItem.components（選択されたコンポーネント）のみ表示
+            if (showAllComponents && sourceItem.gameObject != null)
+            {
+                var allComps = sourceItem.gameObject.GetComponents<Component>();
+                foreach (var comp in allComps)
+                {
+                    if (comp == null) continue;
+                    
+                    var typeName = comp.GetType().Name;
+                    bool isCopyTarget = sourceItem.components.Contains(comp);
+                    
+                    if (isCopyTarget)
+                    {
+                        // コピー対象は緑で表示
+                        GUI.color = Color.green;
+                        Texture icon = GetIcon(comp);
+                        var compContent = new GUIContent($"[+] {typeName} ({Localization.L("Added")})", icon);
+                        EditorGUILayout.LabelField(compContent, EditorStyles.label);
+                        GUI.color = oldColor;
+                        
+                        // Draw Link for component
+                        if (Event.current.type == EventType.Repaint && sourceRects.ContainsKey(comp))
+                        {
+                            var dstRect = GetContentRect(GUILayoutUtility.GetLastRect(), compContent, EditorStyles.label);
+                            DrawLink(sourceRects[comp], dstRect);
+                        }
+                    }
+                    else
+                    {
+                        // それ以外は通常表示（オブジェクトコピーで一緒にコピーされる）
+                        Texture icon = GetIcon(comp);
+                        var compContent = new GUIContent(typeName, icon);
+                        EditorGUILayout.LabelField(compContent, EditorStyles.label);
+                    }
+                }
+            }
+            else
+            {
+                // 選択されたコンポーネントのみ表示
+                foreach (var comp in sourceItem.components)
+                {
+                    if (comp == null) continue;
+                    
+                    var typeName = comp.GetType().Name;
+                    
+                    GUI.color = Color.green;
+                    Texture icon = GetIcon(comp);
+                    var compContent = new GUIContent($"[+] {typeName} ({Localization.L("Added")})", icon);
+                    EditorGUILayout.LabelField(compContent, EditorStyles.label);
+                    GUI.color = oldColor;
+                    
+                    // Draw Link for component
+                    if (Event.current.type == EventType.Repaint && sourceRects.ContainsKey(comp))
+                    {
+                        var dstRect = GetContentRect(GUILayoutUtility.GetLastRect(), compContent, EditorStyles.label);
+                        DrawLink(sourceRects[comp], dstRect);
+                    }
+                }
+            }
+
+            // 子オブジェクトを再帰的に描画
+            foreach (var child in sourceItem.children)
+            {
+                DrawNewObjectTree(child, depth + 1);
+            }
         }
 
         private Rect GetContentRect(Rect rect, GUIContent content, GUIStyle style)

@@ -88,15 +88,17 @@ PROJECT_PATH_MSYS=$(echo "$PROJECT_PATH" | sed -r "s/^([A-Z]):/\/\1/" | sed -r "
 echo "PROJECT_PATH_MSYS: $PROJECT_PATH_MSYS"
 RESULT_PATH="$SCRIPT_DIR/results.xml"
 echo "RESULT_PATH: $RESULT_PATH"
+LOG_PATH="$SCRIPT_DIR/unity.log"
+echo "LOG_PATH: $LOG_PATH"
 
 # テスト実行
 if [ "$BG_MODE" = true ]; then
     # バックグラウンド実行
-    nohup "$PROJECT_PATH_MSYS" -runTests -batchmode -projectPath "$PROJECT_ROOT" -testPlatform EditMode -testResults "$RESULT_PATH" >/dev/null 2>&1 &
+    nohup "$PROJECT_PATH_MSYS" -runTests -batchmode -projectPath "$PROJECT_ROOT" -testPlatform EditMode -testResults "$RESULT_PATH" -logFile "$LOG_PATH" >/dev/null 2>&1 &
     echo "Unityをバックグラウンドで起動しました"
 else
     # フォアグラウンド実行（完了まで待機）
     echo "テストを実行中..."
-    "$PROJECT_PATH_MSYS" -runTests -batchmode -projectPath "$PROJECT_ROOT" -testPlatform EditMode -testResults "$RESULT_PATH"
+    "$PROJECT_PATH_MSYS" -runTests -batchmode -projectPath "$PROJECT_ROOT" -testPlatform EditMode -testResults "$RESULT_PATH" -logFile "$LOG_PATH"
     echo "テスト完了"
 fi

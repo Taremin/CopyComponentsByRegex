@@ -79,6 +79,17 @@ namespace CopyComponentsByRegex
         /// </summary>
         public static void Paste(GameObject destination, CopySettings settings)
         {
+            PasteInternal(destination, settings, isDryRunMode: false);
+        }
+
+        /// <summary>
+        /// ペースト操作の内部実装
+        /// </summary>
+        /// <param name="destination">コピー先オブジェクト</param>
+        /// <param name="settings">コピー設定</param>
+        /// <param name="isDryRunMode">DryRunモードの場合true（レポート表示を抑制）</param>
+        private static void PasteInternal(GameObject destination, CopySettings settings, bool isDryRunMode)
+        {
             if (copyTree == null || root == null)
             {
                 return;
@@ -128,8 +139,8 @@ namespace CopyComponentsByRegex
             // 参照の更新
             UpdateProperties(destination.transform);
 
-            // レポート表示
-            if (showReportAfterPaste && (modificationLogs.Count > 0 || modificationObjectLogs.Count > 0))
+            // レポート表示（DryRunモードでは抑制）
+            if (!isDryRunMode && showReportAfterPaste && (modificationLogs.Count > 0 || modificationObjectLogs.Count > 0))
             {
                 ModificationReportPopup.Show(copyTree, destination, modificationLogs, modificationObjectLogs, isObjectCopy, false, settings);
             }
@@ -137,6 +148,7 @@ namespace CopyComponentsByRegex
 
         /// <summary>
         /// Dry Run（変更のプレビュー）を実行
+        /// destinationの完全なクローンを作成し、そこでPasteを実際に実行してログを収集後、クローンを削除する
         /// </summary>
         public static void DryRun(GameObject destination, CopySettings settings)
         {
@@ -145,47 +157,250 @@ namespace CopyComponentsByRegex
                 return;
             }
 
-            // コピー先のHumanoidマッピングを取得
-            var dstAnimator = destination.GetComponent<Animator>();
-            dstBoneMapping = NameMatcher.GetBoneMapping(dstAnimator);
+            // destinationの完全なクローンを作成
+            var dummyDestination = Object.Instantiate(destination);
+            dummyDestination.name = destination.name + "_DryRunTemp";
+            dummyDestination.hideFlags = HideFlags.HideAndDontSave;
 
-            // srcBoneMappingが設定されていない場合は再取得
-            if ((srcBoneMapping == null || srcBoneMapping.Count == 0) && copyTree?.gameObject != null)
+            // 元のactiveObjectを保存
+            var originalActiveObject = activeObject;
+            activeObject = dummyDestination;
+
+            try
             {
-                var srcAnimator = copyTree.gameObject.GetComponent<Animator>();
-                srcBoneMapping = NameMatcher.GetBoneMapping(srcAnimator);
+                // showReportAfterPasteを強制ONにした設定でPasteを実行
+                var dryRunSettings = new CopySettings
+                {
+                    pattern = settings.pattern,
+                    isRemoveBeforeCopy = settings.isRemoveBeforeCopy,
+                    isObjectCopy = settings.isObjectCopy,
+                    isObjectCopyMatchOnly = settings.isObjectCopyMatchOnly,
+                    isClothNNS = settings.isClothNNS,
+                    copyTransform = settings.copyTransform,
+                    showReportAfterPaste = true,  // ログを強制的に記録
+                    replacementRules = settings.replacementRules
+                };
+
+                // クローン上でPasteを実行（レポート表示は抑制）
+                PasteInternal(dummyDestination, dryRunSettings, isDryRunMode: true);
+
+                // ログのtargetObjectをクローンから実際のdestinationにマッピング
+                // Humanoidボーンマッピングを考慮してパス変換を行う
+                RemapLogTargets(destination, dummyDestination, settings.replacementRules, srcBoneMapping, dstBoneMapping);
             }
-
-            // 設定の同期
-            isRemoveBeforeCopy = settings.isRemoveBeforeCopy;
-            isObjectCopy = settings.isObjectCopy;
-            isObjectCopyMatchOnly = settings.isObjectCopyMatchOnly;
-            replacementRules = settings.replacementRules ?? new List<ReplacementRule>();
-
-            // ログのクリア
-            modificationLogs.Clear();
-            modificationObjectLogs.Clear();
-
-            // 削除処理（Dry Run）
-            if (isRemoveBeforeCopy)
+            finally
             {
-                RemoveWalkdown(destination, ref copyTree, 0, true);
-            }
+                // 元のactiveObjectを復元
+                activeObject = originalActiveObject;
 
-            // オブジェクトコピー処理（Dry Run）
-            if (isObjectCopy)
-            {
-                CopyObjectWalkdown(root, ref copyTree, true);
+                // クローンを削除
+                Object.DestroyImmediate(dummyDestination);
             }
-
-            // マージ処理（Dry Run）
-            MergeWalkdown(destination, ref copyTree, 0, true);
 
             // レポート表示
             if (modificationLogs.Count > 0 || modificationObjectLogs.Count > 0)
             {
                 ModificationReportPopup.Show(copyTree, destination, modificationLogs, modificationObjectLogs, isObjectCopy, true, settings);
             }
+        }
+
+        /// <summary>
+        /// ログのtargetObjectをダミーオブジェクトから実際のdestinationにマッピングし直す
+        /// Humanoidボーンマッピングを考慮してパス変換を行う
+        /// </summary>
+        private static void RemapLogTargets(
+            GameObject realDestination, 
+            GameObject dummyDestination,
+            List<ReplacementRule> rules,
+            Dictionary<string, HumanBodyBones> srcMapping,
+            Dictionary<string, HumanBodyBones> dstMapping)
+        {
+            foreach (var log in modificationLogs)
+            {
+                if (log.targetObject != null)
+                {
+                    // ダミーオブジェクト内のパスを取得
+                    string relativePath = GetRelativePath(log.targetObject.transform, dummyDestination.transform);
+                    
+                    if (relativePath == null)
+                    {
+                        // パスが取得できない場合（ダミーオブジェクトの子孫ではない）
+                        continue;
+                    }
+                    
+                    if (string.IsNullOrEmpty(relativePath))
+                    {
+                        // ルートオブジェクト自身の場合
+                        log.targetObject = realDestination;
+                    }
+                    else
+                    {
+                        // Humanoidボーンマッピングを考慮してパスを変換して検索
+                        Transform realTarget = FindWithBoneMapping(realDestination.transform, relativePath, rules, srcMapping, dstMapping);
+                        
+                        if (realTarget != null)
+                        {
+                            log.targetObject = realTarget.gameObject;
+                        }
+                        else
+                        {
+                            // 実際のdestinationに存在しない場合（オブジェクトコピーで新しく作成される場合）
+                            // targetPathを設定してtargetObjectはnullのまま
+                            // パス変換も試みる
+                            string convertedPath = ConvertPathWithBoneMapping(relativePath, rules, srcMapping, dstMapping, realDestination.transform);
+                            log.targetPath = realDestination.name + "/" + convertedPath;
+                            log.targetObject = null;
+                        }
+                    }
+                }
+            }
+
+
+            foreach (var log in modificationObjectLogs)
+            {
+                if (log.createdObject != null)
+                {
+                    // DryRunでは作成されたオブジェクトは削除されるのでnullにする
+                    log.createdObject = null;
+                }
+                
+                // オブジェクトログのtargetPathも変換する
+                if (!string.IsNullOrEmpty(log.targetPath))
+                {
+                    // ダミーオブジェクト名のプレフィックスを削除して相対パスを取得
+                    string dummyPrefix = dummyDestination.name + "/";
+                    if (log.targetPath.StartsWith(dummyPrefix))
+                    {
+                        string relativePath = log.targetPath.Substring(dummyPrefix.Length);
+                        string convertedPath = ConvertPathWithBoneMapping(relativePath, rules, srcMapping, dstMapping, realDestination.transform);
+                        log.targetPath = realDestination.name + "/" + convertedPath;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Transform間の相対パスを取得
+        /// </summary>
+        private static string GetRelativePath(Transform target, Transform root)
+        {
+            if (target == root) return "";
+            
+            var path = new List<string>();
+            var current = target;
+            while (current != null && current != root)
+            {
+                path.Add(current.name);
+                current = current.parent;
+            }
+            
+            if (current != root) return null; // rootの子孫ではない
+            
+            path.Reverse();
+            return string.Join("/", path);
+        }
+        
+        /// <summary>
+        /// Humanoidボーンマッピングを考慮してTransformを検索
+        /// </summary>
+        private static Transform FindWithBoneMapping(
+            Transform root,
+            string relativePath,
+            List<ReplacementRule> rules,
+            Dictionary<string, HumanBodyBones> srcMapping,
+            Dictionary<string, HumanBodyBones> dstMapping)
+        {
+            // まず直接検索を試みる
+            var direct = root.Find(relativePath);
+            if (direct != null)
+            {
+                return direct;
+            }
+            
+            // ルールがない場合はnullを返す
+            if (rules == null || rules.Count == 0)
+            {
+                return null;
+            }
+            
+            // パスの各セグメントを変換しながら検索
+            var segments = relativePath.Split('/');
+            Transform current = root;
+            
+            for (int i = 0; i < segments.Length; i++)
+            {
+                string srcName = segments[i];
+                
+                // 子をDictionaryに変換
+                var childDict = new Dictionary<string, Transform>();
+                foreach (Transform child in current)
+                {
+                    childDict[child.name] = child;
+                }
+                
+                // マッチする子を検索
+                if (NameMatcher.TryFindMatchingName(childDict, srcName, rules, out string matchedName, srcMapping, dstMapping))
+                {
+                    current = childDict[matchedName];
+                }
+                else
+                {
+                    // マッチする子が見つからない
+                    return null;
+                }
+            }
+            
+            return current;
+        }
+        
+        /// <summary>
+        /// パスをHumanoidボーンマッピングで変換（オブジェクトが存在しない場合用）
+        /// </summary>
+        private static string ConvertPathWithBoneMapping(
+            string relativePath,
+            List<ReplacementRule> rules,
+            Dictionary<string, HumanBodyBones> srcMapping,
+            Dictionary<string, HumanBodyBones> dstMapping,
+            Transform realDestRoot)
+        {
+            // ルールがない場合は元のパスを返す
+            if (rules == null || rules.Count == 0)
+            {
+                return relativePath;
+            }
+            
+            var segments = relativePath.Split('/');
+            var convertedSegments = new List<string>();
+            Transform current = realDestRoot;
+            
+            for (int i = 0; i < segments.Length; i++)
+            {
+                string srcName = segments[i];
+                
+                if (current != null)
+                {
+                    // 子をDictionaryに変換
+                    var childDict = new Dictionary<string, Transform>();
+                    foreach (Transform child in current)
+                    {
+                        childDict[child.name] = child;
+                    }
+                    
+                    // マッチする子を検索
+                    if (NameMatcher.TryFindMatchingName(childDict, srcName, rules, out string matchedName, srcMapping, dstMapping))
+                    {
+                        convertedSegments.Add(matchedName);
+                        current = childDict[matchedName];
+                        continue;
+                    }
+                }
+                
+                // マッチしない場合は元の名前を使用し、以降は変換せずに追加
+                convertedSegments.Add(srcName);
+                current = null; // 以降は検索しない
+            }
+            
+            return string.Join("/", convertedSegments);
         }
 
         /// <summary>
@@ -222,7 +437,7 @@ namespace CopyComponentsByRegex
         /// <summary>
         /// オブジェクトコピーの階層走査
         /// </summary>
-        internal static void CopyObjectWalkdown(Transform src, ref TreeItem tree, bool dryRun = false)
+        internal static void CopyObjectWalkdown(Transform src, ref TreeItem tree)
         {
             foreach (TreeItem child in tree.children)
             {
@@ -235,9 +450,9 @@ namespace CopyComponentsByRegex
                         continue;
                     }
                     route.Add(child);
-                    CopyObject(root, activeObject.transform, route, dryRun);
+                    CopyObject(root, activeObject.transform, route);
                 }
-                CopyObjectWalkdown(child.gameObject.transform, ref next, dryRun);
+                CopyObjectWalkdown(child.gameObject.transform, ref next);
             }
         }
 
@@ -268,10 +483,12 @@ namespace CopyComponentsByRegex
             return down;
         }
 
+
+
         /// <summary>
         /// オブジェクトをコピー
         /// </summary>
-        internal static Transform CopyObject(Transform srcRoot, Transform dstRoot, List<TreeItem> route, bool dryRun = false)
+        internal static Transform CopyObject(Transform srcRoot, Transform dstRoot, List<TreeItem> route)
         {
             var src = srcRoot;
             var dst = dstRoot;
@@ -306,7 +523,7 @@ namespace CopyComponentsByRegex
 
                 if (srcChild != null && dstChild == null)
                 {
-                    if (dryRun || showReportAfterPaste)
+                    if (showReportAfterPaste)
                     {
                         // 既にこの作成ログが記録されているか確認
                         if (!modificationObjectLogs.Any(x => x.targetPath == currentPath && x.operation == ModificationOperation.CreateObject))
@@ -317,11 +534,6 @@ namespace CopyComponentsByRegex
                                 operation = ModificationOperation.CreateObject,
                                 message = Localization.L("Created")
                             });
-                        }
-                        // Dry Runではオブジェクトを作成しないので、ここで中断
-                        if (dryRun)
-                        {
-                            return null;
                         }
                     }
 
@@ -355,10 +567,10 @@ namespace CopyComponentsByRegex
         /// <summary>
         /// コンポーネント操作を実行
         /// </summary>
-        internal static void RunComponentOperation(GameObject go, string componentType, ModificationOperation op, string message, bool dryRun, System.Func<Component> action)
+        internal static void RunComponentOperation(GameObject go, string componentType, ModificationOperation op, string message, System.Func<Component> action)
         {
             bool logAdded = false;
-            if (dryRun || showReportAfterPaste)
+            if (showReportAfterPaste)
             {
                 if (!string.IsNullOrEmpty(message))
                 {
@@ -371,11 +583,6 @@ namespace CopyComponentsByRegex
                     });
                     logAdded = true;
                 }
-            }
-
-            if (dryRun)
-            {
-                return;
             }
 
             Component result = action();
@@ -398,7 +605,7 @@ namespace CopyComponentsByRegex
         /// <summary>
         /// マージ処理の階層走査
         /// </summary>
-        internal static void MergeWalkdown(GameObject go, ref TreeItem tree, int depth = 0, bool dryRun = false)
+        internal static void MergeWalkdown(GameObject go, ref TreeItem tree, int depth = 0)
         {
             // 置換ルールを考慮した名前マッチング
             if (depth > 0 && !NameMatcher.NamesMatch(tree.name, go.name, replacementRules, srcBoneMapping, dstBoneMapping))
@@ -429,7 +636,7 @@ namespace CopyComponentsByRegex
                         msg = Localization.L("Updated");
                     }
 
-                    RunComponentOperation(go, componentType.Name, op, msg, dryRun, () =>
+                    RunComponentOperation(go, componentType.Name, op, msg, () =>
                     {
                         UnityEditorInternal.ComponentUtility.CopyComponent(component);
                         if (targetComponent != null)
@@ -450,7 +657,7 @@ namespace CopyComponentsByRegex
                         ? Localization.L("Updated") + (isClothNNS ? " (NNS)" : "")
                         : Localization.L("Added");
 
-                    RunComponentOperation(go, componentType.Name, op, msg, dryRun, () =>
+                    RunComponentOperation(go, componentType.Name, op, msg, () =>
                     {
                         var cloth = go.GetComponent<Cloth>() == null ? go.AddComponent<Cloth>() : go.GetComponent<Cloth>();
                         CopyProperties(component, cloth);
@@ -507,7 +714,7 @@ namespace CopyComponentsByRegex
                     ModificationOperation op = ModificationOperation.Add;
                     string msg = targetComponent != null ? Localization.L("Added") : Localization.L("Added");
 
-                    RunComponentOperation(go, componentType.Name, op, msg, dryRun, () =>
+                    RunComponentOperation(go, componentType.Name, op, msg, () =>
                     {
                         int countBefore = go.GetComponents<Component>().Length;
 
@@ -556,7 +763,7 @@ namespace CopyComponentsByRegex
 
                 if (child.gameObject.GetType().ToString() == treeChild.type)
                 {
-                    MergeWalkdown(child.gameObject, ref next, depth + 1, dryRun);
+                    MergeWalkdown(child.gameObject, ref next, depth + 1);
                 }
             }
         }
@@ -564,7 +771,7 @@ namespace CopyComponentsByRegex
         /// <summary>
         /// 削除処理の階層走査
         /// </summary>
-        internal static void RemoveWalkdown(GameObject go, ref TreeItem tree, int depth = 0, bool dryRun = false)
+        internal static void RemoveWalkdown(GameObject go, ref TreeItem tree, int depth = 0)
         {
             // 置換ルールを考慮した名前マッチング
             if (depth > 0 && !NameMatcher.NamesMatch(tree.name, go.name, replacementRules, srcBoneMapping, dstBoneMapping))
@@ -584,7 +791,7 @@ namespace CopyComponentsByRegex
                         continue;
                     }
 
-                    if (dryRun || showReportAfterPaste)
+                    if (showReportAfterPaste)
                     {
                         modificationLogs.Add(new ModificationEntry
                         {
@@ -593,11 +800,6 @@ namespace CopyComponentsByRegex
                             operation = ModificationOperation.Remove,
                             message = Localization.L("Removed")
                         });
-
-                        if (dryRun)
-                        {
-                            continue;
-                        }
                     }
 
                     Object.DestroyImmediate(component);
@@ -618,7 +820,7 @@ namespace CopyComponentsByRegex
                     )
                     {
                         next = treeChild;
-                        RemoveWalkdown(child.gameObject, ref next, depth + 1, dryRun);
+                        RemoveWalkdown(child.gameObject, ref next, depth + 1);
                         break;
                     }
                 }

@@ -293,12 +293,11 @@ namespace CopyComponentsByRegex.Tests
             var regex = new Regex("BoxCollider");
             ComponentCopier.CopyWalkdown(sourceRoot, ref tree, ref regex);
 
-            // Act: デスティネーションにマージ（DryRunモードでテスト）
-            ComponentCopier.MergeWalkdown(destinationRoot, ref tree, 0, true);
+            // Act: デスティネーションにマージ
+            ComponentCopier.MergeWalkdown(destinationRoot, ref tree, 0);
 
-            // Assert: DryRunなので実際にはコンポーネントは追加されない
-            // このテストは統合的な動作確認として、エラーなく実行されることを確認
-            Assert.IsNull(destinationRoot.GetComponent<BoxCollider>());
+            // Assert: コンポーネントが追加されることを確認
+            Assert.IsNotNull(destinationRoot.GetComponent<BoxCollider>(), "BoxCollider should be copied to destination");
         }
 
         /// <summary>
@@ -456,13 +455,13 @@ namespace CopyComponentsByRegex.Tests
             Assert.IsTrue(found, "TryFindMatchingName should find Head");
             Assert.AreEqual("Head", matchedName);
 
-            // Act - DryRunモードでテスト（テスト環境ではPasteComponentAsNewが正常に動作しない）
-            ComponentCopier.MergeWalkdown(destinationRoot, ref tree, 0, true);
+            // Act - MergeWalkdownを実行し、コンポーネントがコピーされることを確認
+            ComponentCopier.MergeWalkdown(destinationRoot, ref tree, 0);
 
-            // Assert - DryRunなのでコンポーネントは実際には追加されない
+            // Assert - コンポーネントが正しくコピーされることを確認
             // NamesMatchとTryFindMatchingNameが正しく動作することは上記のアサーションで確認済み
-            Assert.IsNull(dstHead.GetComponent<BoxCollider>(), "DryRun: Head should not have BoxCollider");
-            Assert.IsNull(dstSpine.GetComponent<SphereCollider>(), "DryRun: Spine should not have SphereCollider");
+            Assert.IsNotNull(dstHead.GetComponent<BoxCollider>(), "Head should have BoxCollider after merge");
+            Assert.IsNotNull(dstSpine.GetComponent<SphereCollider>(), "Spine should have SphereCollider after merge");
         }
 
         /// <summary>
@@ -495,7 +494,7 @@ namespace CopyComponentsByRegex.Tests
             ComponentCopier.CopyWalkdown(sourceRoot, ref tree, ref regex);
 
             // Act - DryRunモードでテスト
-            ComponentCopier.MergeWalkdown(destinationRoot, ref tree, 0, true);
+            ComponentCopier.MergeWalkdown(destinationRoot, ref tree, 0);
 
             // Assert
             // NamesMatchのHeadグループフィルタリングが正しく動作することを確認
@@ -539,7 +538,7 @@ namespace CopyComponentsByRegex.Tests
             ComponentCopier.CopyWalkdown(sourceRoot, ref tree, ref regex);
 
             // Act - DryRunモードでテスト
-            ComponentCopier.MergeWalkdown(destinationRoot, ref tree, 0, true);
+            ComponentCopier.MergeWalkdown(destinationRoot, ref tree, 0);
 
             // Assert - NamesMatchがマッピングなしで失敗することを確認
             bool match = NameMatcher.NamesMatch("J_Bip_C_Head", "Head", 
@@ -580,7 +579,7 @@ namespace CopyComponentsByRegex.Tests
             ComponentCopier.CopyWalkdown(sourceRoot, ref tree, ref regex);
 
             // Act - DryRunモードでテスト
-            ComponentCopier.MergeWalkdown(destinationRoot, ref tree, 0, true);
+            ComponentCopier.MergeWalkdown(destinationRoot, ref tree, 0);
 
             // Assert - 両方のルールが正しくマッチできることを確認
             bool headMatch = NameMatcher.NamesMatch("J_Bip_C_Head", "Head", 
@@ -649,7 +648,7 @@ namespace CopyComponentsByRegex.Tests
             ComponentCopier.modificationLogs.Clear();
             ComponentCopier.modificationObjectLogs.Clear();
             var copyTree = ComponentCopier.copyTree;
-            ComponentCopier.MergeWalkdown(destinationRoot, ref copyTree, 0, true);
+            ComponentCopier.MergeWalkdown(destinationRoot, ref copyTree, 0);
 
             // Assert: hipsがsiriにマッチし、CreateObjectは発生しない
             var createLogs = ComponentCopier.modificationObjectLogs
